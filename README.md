@@ -41,7 +41,9 @@ Setup registers the native host, waits for the extension to say hello and asks w
 Yurei to. It also writes a short skill file, `~/.agents/skills/yurei/SKILL.md`, that teaches the AI how to use
 the tools. Restart your AI tools. That's it, the ghost is in.
 
-> Yurei is not in the Chrome Web Store or on npm yet. Until it is, [install from source](#install-from-source).
+> The extension is not in the Chrome Web Store yet. Until it is, download `yurei-extension.zip` from the
+> [latest release](https://github.com/memel06/yurei/releases/latest), unzip it and load the folder in `chrome://extensions`
+> with Developer mode on. Step 2 works as written.
 
 ## Use
 

@@ -53,4 +53,4 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
    it fixes the extension id that the native host trusts, in the store and unpacked alike.
 4. `npm publish -w yurei-kit` publishes the CLI (`prepublishOnly` builds it).
 5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`.
-6. Remove the "not published yet" note from the README once both are live.
+6. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
