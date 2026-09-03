@@ -13,7 +13,6 @@
   <a href="https://yurei.web.app">yurei.web.app</a> ·
   <a href="#install">Install</a> ·
   <a href="#use">Use</a> ·
-  <a href="#how-it-works">How it works</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -72,8 +71,8 @@ Setup links `yurei` into `~/.local/bin`. If that is not on your PATH, `npx yurei
 
 ## What the AI gets
 
-Every action returns the page as text: URL, title and the interactive elements in view, each with a `[ref_N]`
-the AI can click or type into. Iframes are included, with refs like `frame3_ref_7`.
+After every action the AI gets the page back as text: the address, the title and a numbered list of
+everything it can click or type into. Buttons and fields inside embedded frames are listed too.
 
 | Tool | What it does |
 | --- | --- |
@@ -96,21 +95,6 @@ the AI can click or type into. Iframes are included, with refs like `frame3_ref_
 - **Nothing happens on `chrome://` pages.** They cannot be controlled. Open a website first.
 
 Logs are in `~/.yurei/native-host.log`.
-
-## How it works
-
-```mermaid
-flowchart LR
-  A[Your AI tool] -- MCP over stdio --> S[yurei serve]
-  S -- local socket --> H[yurei native-host]
-  H -- native messaging --> E[Yurei extension]
-  E -- Chrome debugging protocol --> T[Your tabs]
-```
-
-Chrome starts the native host itself when the extension connects, and your AI tool talks to it over a local
-socket. The extension controls tabs through Chrome's debugging protocol, the same one DevTools uses. There is
-no server, no open port and no account. Nothing leaves your machine except what your AI tool already sends to
-its model.
 
 ## Install from source
 
