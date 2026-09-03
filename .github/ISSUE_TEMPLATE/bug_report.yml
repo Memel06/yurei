@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked your AI tool to do, what Yurei did, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `yurei setup` and pick ...
+        2. In <AI tool>, ask "..."
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `yurei doctor`
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: AI tool and model
+      placeholder: opencode 1.4 with ...
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS, Chrome and Node.js versions
+      placeholder: macOS 15.6, Chrome 140, Node.js 22.20
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant lines from `~/.yurei/native-host.log`
+      description: Remove anything private before pasting.
+      render: text

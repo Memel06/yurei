@@ -1,0 +1,56 @@
+# Contributing
+
+Thanks for helping. Bug reports, ideas and pull requests all go through GitHub issues and PRs; `main` only
+changes through a reviewed pull request with green CI.
+
+## Development
+
+```sh
+npm install
+npm run build        # extension → yurei-extension/dist, CLI → yurei-kit/dist/yurei.mjs
+npm run typecheck
+sh install.sh        # registers this checkout's build with Chrome and runs the setup wizard
+```
+
+After changing the extension, run `npm run build` and then `yurei reload-extension` to reload it in Chrome.
+`yurei call <tool> '<json>'` runs one browser tool by hand, for example `yurei call navigate '{"url":"example.com"}'`,
+and `yurei doctor` checks the whole chain from the CLI to your tabs.
+
+Test installer changes against a throwaway home so your own configs stay untouched:
+
+```sh
+HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs setup
+```
+
+## Layout
+
+- `yurei-extension/` the Chrome extension (Manifest V3, TypeScript). `fonts/` and `icons/` are copied into `dist/`.
+- `yurei-kit/` the `yurei` command: native host, MCP server and setup wizard, published to npm as `yurei-chrome`.
+- `shared/protocol.ts` the messages the two exchange.
+- `assets/` the logo, also used by the [website](https://yurei.web.app).
+
+## Style
+
+- TypeScript, strict. No `any`, no `@ts-ignore`, `unknown` only with narrowing, `readonly` where data does not change.
+- Comments explain why, never what. Delete dead code instead of commenting it out.
+- The popup, the in-page indicator and the website share one look: night `#0a0b12`, paper `#f2ecdf`, glow blue
+  `#4274f2`, seal red `#c73a27`, Shippori Mincho B1 for titles and Yuji Syuku for the kanji. Both fonts are
+  subsets under the SIL Open Font License, see `yurei-extension/fonts/OFL.txt`.
+- No third-party brand names in example prompts.
+
+## Pull requests
+
+- Title and commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`,
+  `refactor:`, `chore:`. PRs are squash-merged, so the PR title becomes the commit.
+- Keep a PR to one change. Say how you tested it in Chrome.
+- CI runs typecheck and build, packs the extension and starts the CLI on Node.js 18 to 24 on Linux, macOS and Windows.
+
+## Releasing
+
+1. Bump the version in `yurei-extension/manifest.json` and `yurei-kit/package.json` (`npm version X.Y.Z -w yurei-kit --no-git-tag-version`).
+2. Commit, tag `vX.Y.Z` and push the tag.
+3. `npm run pack -w yurei-extension` zips `dist/` for the Chrome Web Store. Keep the `key` in `manifest.json`:
+   it fixes the extension id that the native host trusts, in the store and unpacked alike.
+4. `npm publish -w yurei-kit` publishes the CLI (`prepublishOnly` builds it).
+5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`.
+6. Remove the "not published yet" note from the README once both are live.

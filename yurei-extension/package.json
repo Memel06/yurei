@@ -1,0 +1,10 @@
+{
+  "name": "yurei-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "pack": "rm -f yurei-extension.zip && cd dist && zip -qr ../yurei-extension.zip ."
+  }
+}

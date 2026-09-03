@@ -1,0 +1,19 @@
+{
+  "name": "yurei",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "yurei-extension",
+    "yurei-kit"
+  ],
+  "scripts": {
+    "build": "npm run build -ws",
+    "typecheck": "npm run typecheck -ws"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.8",
+    "@types/node": "^26.4.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

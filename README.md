@@ -1,0 +1,132 @@
+<p align="center">
+  <a href="https://yurei.web.app"><img src="assets/yurei.png" width="140" alt="Yurei, a friendly blue ghost"></a>
+</p>
+
+<h1 align="center">Yurei</h1>
+
+<p align="center">
+  <b>Your AI, haunting your browser.</b><br>
+  A Chrome extension and a tiny CLI that give any AI coding tool the Chrome you already use.
+</p>
+
+<p align="center">
+  <a href="https://yurei.web.app">yurei.web.app</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#use">Use</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/memel06/yurei/actions/workflows/ci.yml"><img src="https://github.com/memel06/yurei/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4274f2" alt="MIT license"></a>
+</p>
+
+---
+
+Yurei (幽霊, a Japanese ghost) lets the AI coding tool you already use browse in your own Chrome: your tabs,
+your logins, your cookies. It works with opencode, pi, Cursor, Windsurf, Codex CLI and anything else that
+speaks [MCP](https://modelcontextprotocol.io), with any model. Models that see images take screenshots when
+they need them. Text-only models read the page as text. There is nothing to configure when you switch.
+
+## Install
+
+1. Add [Yurei](https://chromewebstore.google.com/detail/acgjkkmeekbcbpknmackieajkcmbllhm) to Chrome.
+2. In a terminal, with [Node.js](https://nodejs.org) 18 or newer:
+
+   ```sh
+   npx yurei-chrome setup
+   ```
+
+Setup registers the native host, waits for the extension to say hello and asks which of your AI tools to add
+Yurei to. It also writes a short skill file, `~/.agents/skills/yurei/SKILL.md`, that teaches the AI how to use
+the tools. Restart your AI tools. That's it, the ghost is in.
+
+> Yurei is not in the Chrome Web Store or on npm yet. Until it is, [install from source](#install-from-source).
+
+## Use
+
+Ask your AI as you normally would. When a task needs a browser, it uses Yurei:
+
+- "Open my news tab and summarise the five biggest stories."
+- "In my inbox, find the unread message from the bank and tell me the amount."
+- "Log in to staging as the test user and check the checkout page."
+
+Say "in my browser" when you want to be explicit.
+
+While the ghost works, the tab glows and a **Stop Yurei** button appears at the bottom of the page. The AI
+acts inside your logged-in accounts. It is told to ask before paying, sending messages or deleting anything.
+Keep an eye on it anyway.
+
+## Commands
+
+```
+yurei setup [--yes]           add Yurei to your AI tools, or repair the installation
+yurei doctor                  check that Chrome and the extension are connected
+yurei config <tool>           print the MCP config for one tool: opencode, pi, cursor, windsurf, codex, generic
+yurei call <tool> '<json>'    run one browser tool by hand, e.g. yurei call navigate '{"url":"example.com"}'
+yurei reload-extension        reload the unpacked extension after a rebuild
+```
+
+Setup links `yurei` into `~/.local/bin`. If that is not on your PATH, `npx yurei-chrome <command>` works the same.
+
+## What the AI gets
+
+Every action returns the page as text: URL, title and the interactive elements in view, each with a `[ref_N]`
+the AI can click or type into. Iframes are included, with refs like `frame3_ref_7`.
+
+| Tool | What it does |
+| --- | --- |
+| `tabs_context`, `tabs_create`, `tabs_close` | List, open and close tabs |
+| `navigate` | Go to a URL, back, forward, reload |
+| `computer` | Click, type, press keys, scroll, drag, wait, take a screenshot |
+| `read_page` | Outline of the page, interactive elements or everything |
+| `find` | Locate an element from a plain-language description |
+| `get_page_text` | The readable text of the page |
+| `form_input` | Set the value of a field |
+| `javascript_tool` | Run code in the page and get the result back |
+| `read_console_messages`, `read_network_requests` | What the page logged and requested |
+| `resize_window` | Resize the window |
+
+## Troubleshooting
+
+- **The extension says "not connected".** Run `yurei setup` again, then reload the extension in `chrome://extensions`.
+- **Your AI does not see Yurei.** Restart it after setup. `yurei config <tool>` shows what its config should contain.
+- **"Tab is being debugged by something else".** Close Chrome DevTools on that tab.
+- **Nothing happens on `chrome://` pages.** They cannot be controlled. Open a website first.
+
+Logs are in `~/.yurei/native-host.log`.
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[Your AI tool] -- MCP over stdio --> S[yurei serve]
+  S -- local socket --> H[yurei native-host]
+  H -- native messaging --> E[Yurei extension]
+  E -- Chrome debugging protocol --> T[Your tabs]
+```
+
+Chrome starts the native host itself when the extension connects, and your AI tool talks to it over a local
+socket. The extension controls tabs through Chrome's debugging protocol, the same one DevTools uses. There is
+no server, no open port and no account. Nothing leaves your machine except what your AI tool already sends to
+its model.
+
+## Install from source
+
+```sh
+git clone https://github.com/memel06/yurei.git
+cd yurei
+sh install.sh
+```
+
+When setup asks, load `yurei-extension/dist` in `chrome://extensions` (turn on Developer mode, then Load unpacked).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and
+[SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## License
+
+[MIT](LICENSE) © [Carmelo Ventimiglia](https://www.linkedin.com/in/carmelo-ventimiglia/)

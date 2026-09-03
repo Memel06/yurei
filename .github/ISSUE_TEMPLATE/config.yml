@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/memel06/yurei/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue for it.
+  - name: Website
+    url: https://yurei.web.app
+    about: What Yurei is and how to set it up.

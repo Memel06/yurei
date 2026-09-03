@@ -1,0 +1,48 @@
+{
+  "name": "yurei-chrome",
+  "version": "0.1.0",
+  "description": "Let your AI tool browse in your own Chrome: the MCP server, native messaging host and setup wizard for the Yurei extension",
+  "keywords": [
+    "mcp",
+    "chrome",
+    "browser",
+    "browser-automation",
+    "ai-agent",
+    "chrome-extension",
+    "opencode",
+    "cursor",
+    "codex"
+  ],
+  "homepage": "https://yurei.web.app",
+  "bugs": {
+    "url": "https://github.com/memel06/yurei/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/memel06/yurei.git",
+    "directory": "yurei-kit"
+  },
+  "author": "Carmelo Ventimiglia",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "yurei": "dist/yurei.mjs"
+  },
+  "files": [
+    "dist/yurei.mjs",
+    "dist/THIRD_PARTY_LICENSES.txt",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  }
+}

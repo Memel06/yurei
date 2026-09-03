@@ -1,0 +1,22 @@
+name: Feature request
+description: A tool Yurei should support, or something the browser tools should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The task, and what happens today when you try it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Yurei to do instead
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: AI tool involved, if any
+      placeholder: Cursor, Codex CLI, another MCP client ...
