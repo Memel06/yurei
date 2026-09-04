@@ -2,8 +2,9 @@ import { COMPUTER_ACTIONS, type Args, type ToolName, type ToolResult, errorResul
 import { ArgError, optBoolean, optCoordinate, optEnum, optNumber, optString, reqEnum, reqNumber, reqString, type Coordinate } from "./args";
 import { errorMessage, sessions, type TabSession } from "./cdp";
 import { callPage, chainOffset, composeFind, composeText, composeTree, fieldNumber, fieldString, frameChain, frameOfRef, localRef, qualifyText, viewportOf, walkFrames } from "./frames";
-import { hideForCapture, markActive, moveCursor, showAfterCapture, sleep } from "./indicator";
+import { hideForCapture, markActive, moveCursor, showAfterCapture } from "./indicator";
 import { MOD, parseKeyPress } from "./keys";
+import { movePath, pause, sleep, takeTurn, type Point } from "./pacing";
 import type { TreeFilter } from "./page-api";
 import { captureScreenshot, viewportInfo } from "./screenshot";
 import { truncateText } from "./text-utils";
@@ -47,7 +48,7 @@ async function resolveTab(args: Args, allowRestricted = false): Promise<chrome.t
   // Screenshots need a visible tab, and the user should see what the AI is doing.
   if (!tab.active) {
     await chrome.tabs.update(tabId, { active: true });
-    await sleep(150);
+    await pause(150);
   }
   return tab;
 }
@@ -164,15 +165,27 @@ async function mouse(session: TabSession, type: string, x: number, y: number, ex
   await session.send("Input.dispatchMouseEvent", { type, x: Math.round(x), y: Math.round(y), ...extra });
 }
 
+/** Walks the pointer to the target so the page sees a trail of mousemoves instead of one jump. */
+async function moveTo(session: TabSession, tabId: number, to: Point, buttons: number, modifiers = 0): Promise<void> {
+  const path = movePath(session.cursor, to);
+  const extra = { button: buttons === 0 ? "none" : "left", buttons, modifiers };
+  await moveCursor(tabId, to.x, to.y);
+  for (const step of path.slice(0, -1)) {
+    await mouse(session, "mouseMoved", step.x, step.y, extra);
+    await pause(14);
+  }
+  await mouse(session, "mouseMoved", to.x, to.y, extra);
+  session.cursor = { x: to.x, y: to.y };
+}
+
 async function click(session: TabSession, tabId: number, target: Target, button: Button, count: number, modifiers: number): Promise<void> {
-  await moveCursor(tabId, target.x, target.y);
-  await mouse(session, "mouseMoved", target.x, target.y, { button: "none", buttons: 0, modifiers });
-  await sleep(60);
+  await moveTo(session, tabId, target, 0, modifiers);
+  await pause(60);
   for (let i = 1; i <= count; i++) {
     await mouse(session, "mousePressed", target.x, target.y, { button, buttons: BUTTON_MASK[button], clickCount: i, modifiers });
-    await sleep(20);
+    await pause(20);
     await mouse(session, "mouseReleased", target.x, target.y, { button, buttons: 0, clickCount: i, modifiers });
-    if (i < count) await sleep(80);
+    if (i < count) await pause(80);
   }
 }
 
@@ -186,6 +199,7 @@ async function pressKey(session: TabSession, combo: string): Promise<void> {
     ...(printable && { text: def.text, unmodifiedText: def.text }),
     ...(commands.length > 0 && { commands }),
   });
+  await pause(35);
   await session.send("Input.dispatchKeyEvent", { ...base, type: "keyUp" });
 }
 
@@ -204,6 +218,7 @@ async function computer(args: Args): Promise<ToolResult> {
   const session = sessions.get(tabId);
   await session.ensureAttached();
   const action = reqEnum(args, "action", COMPUTER_ACTIONS);
+  if (action !== "screenshot" && action !== "wait") await takeTurn(tab.url ?? "", "action");
   const view = (headline: string): Promise<ToolResult> => snapshot(tabId, session, headline, action === "screenshot" || wantsScreenshot(args));
 
   switch (action) {
@@ -219,15 +234,14 @@ async function computer(args: Args): Promise<ToolResult> {
       const button: Button = action === "right_click" ? "right" : action === "middle_click" ? "middle" : "left";
       const count = action === "double_click" ? 2 : action === "triple_click" ? 3 : 1;
       await click(session, tabId, target, button, count, modifiersFrom(args));
-      await sleep(400);
+      await pause(400);
       return view(`${action} at ${imagePoint(session, target)}${target.label ? ` on ${target.label}` : ""}.`);
     }
 
     case "hover": {
       const target = await resolveTarget(args, session, tabId);
-      await moveCursor(tabId, target.x, target.y);
-      await mouse(session, "mouseMoved", target.x, target.y, { button: "none", buttons: 0 });
-      await sleep(300);
+      await moveTo(session, tabId, target, 0);
+      await pause(300);
       return view(`Hovering ${imagePoint(session, target)}${target.label ? ` on ${target.label}` : ""}.`);
     }
 
@@ -236,12 +250,12 @@ async function computer(args: Args): Promise<ToolResult> {
       if (optString(args, "ref") || optCoordinate(args, "coordinate")) {
         const target = await resolveTarget(args, session, tabId);
         await click(session, tabId, target, "left", 1, 0);
-        await sleep(120);
+        await pause(120);
       } else {
         await markActive(tabId);
       }
       await typeText(session, text);
-      await sleep(300);
+      await pause(300);
       return view(`Typed ${JSON.stringify(text.length > 80 ? `${text.slice(0, 80)}…` : text)}.`);
     }
 
@@ -249,8 +263,11 @@ async function computer(args: Args): Promise<ToolResult> {
       const combo = optString(args, "text");
       if (!combo) throw new ArgError('key needs "text", e.g. "Enter", "cmd+a", "ctrl+shift+t", or a sequence "Tab Tab Enter".');
       await markActive(tabId);
-      for (const part of combo.trim().split(/\s+/)) await pressKey(session, part);
-      await sleep(300);
+      for (const part of combo.trim().split(/\s+/)) {
+        await pressKey(session, part);
+        await pause(45);
+      }
+      await pause(300);
       return view(`Pressed ${combo}.`);
     }
 
@@ -263,16 +280,16 @@ async function computer(args: Args): Promise<ToolResult> {
         ? await resolveTarget(args, session, tabId)
         : { x: vp.width / 2, y: vp.height / 2, label: "" };
       const [deltaX, deltaY] = direction === "down" ? [0, px] : direction === "up" ? [0, -px] : direction === "right" ? [px, 0] : [-px, 0];
-      await moveCursor(tabId, target.x, target.y);
+      await moveTo(session, tabId, target, 0);
       await mouse(session, "mouseWheel", target.x, target.y, { deltaX, deltaY });
-      await sleep(400);
+      await pause(400);
       return view(`Scrolled ${direction} by ${px}px.`);
     }
 
     case "scroll_to": {
       const target = await refTarget(session, tabId, reqString(args, "ref"), "scrollTo");
-      await moveCursor(tabId, target.x, target.y);
-      await sleep(300);
+      await moveTo(session, tabId, target, 0);
+      await pause(300);
       return view(`Scrolled ${target.label} into view.`);
     }
 
@@ -282,18 +299,12 @@ async function computer(args: Args): Promise<ToolResult> {
       if (!from || !to) throw new ArgError("left_click_drag needs start_coordinate and coordinate.");
       const a = await toCss(session, from);
       const b = await toCss(session, to);
-      await moveCursor(tabId, a.x, a.y);
-      await mouse(session, "mouseMoved", a.x, a.y, { button: "none", buttons: 0 });
+      await moveTo(session, tabId, a, 0);
       await mouse(session, "mousePressed", a.x, a.y, { button: "left", buttons: 1, clickCount: 1 });
-      const steps = 8;
-      for (let i = 1; i <= steps; i++) {
-        const x = a.x + ((b.x - a.x) * i) / steps;
-        const y = a.y + ((b.y - a.y) * i) / steps;
-        await moveCursor(tabId, x, y);
-        await mouse(session, "mouseMoved", x, y, { button: "left", buttons: 1 });
-      }
+      await pause(60);
+      await moveTo(session, tabId, b, 1);
       await mouse(session, "mouseReleased", b.x, b.y, { button: "left", buttons: 0, clickCount: 1 });
-      await sleep(400);
+      await pause(400);
       return view(`Dragged from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]}).`);
     }
 
@@ -316,7 +327,9 @@ async function tabsContext(): Promise<ToolResult> {
 
 async function tabsCreate(args: Args): Promise<ToolResult> {
   const url = optString(args, "url");
-  const tab = await chrome.tabs.create({ url: url ? normalizeUrl(url) : "about:blank", active: true });
+  const destination = url ? normalizeUrl(url) : "about:blank";
+  if (url) await takeTurn(destination, "load");
+  const tab = await chrome.tabs.create({ url: destination, active: true });
   const tabId = tabIdOf(tab);
   if (!url) return textResult(`Created empty tab ${tabId}. Use navigate with tabId ${tabId} and a url.`);
   await waitForLoad(tabId);
@@ -338,12 +351,14 @@ async function navigate(args: Args): Promise<ToolResult> {
   const url = optString(args, "url");
   const action = optEnum(args, "action", ["back", "forward", "reload"]);
   if (!url && !action) throw new ArgError('navigate needs "url" or "action" (back | forward | reload).');
+  const destination = url ? normalizeUrl(url) : (tab.url ?? "");
+  await takeTurn(destination, "load");
   const session = sessions.get(tabId);
   session.console.splice(0);
   session.network.splice(0);
   // Attach before navigating so the page load's console and network events are captured; browser-internal pages refuse the debugger.
   if (!RESTRICTED_URL.test(tab.url ?? "")) await session.ensureAttached();
-  if (url) await chrome.tabs.update(tabId, { url: normalizeUrl(url) });
+  if (url) await chrome.tabs.update(tabId, { url: destination });
   else if (action === "back") await chrome.tabs.goBack(tabId);
   else if (action === "forward") await chrome.tabs.goForward(tabId);
   else await chrome.tabs.reload(tabId);
@@ -392,6 +407,7 @@ async function formInput(args: Args): Promise<ToolResult> {
 
 async function javascriptTool(args: Args): Promise<ToolResult> {
   const tab = await resolveTab(args);
+  await takeTurn(tab.url ?? "", "action");
   const session = sessions.get(tabIdOf(tab));
   const code = reqString(args, "code");
   // Statement lists with `return` or `await` only parse inside a function body; compiling first decides that without running the code.

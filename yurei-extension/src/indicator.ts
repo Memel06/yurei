@@ -1,10 +1,9 @@
 import { DEFAULT_ACCENT, type IndicatorMessage } from "./messages";
+import { sleep } from "./pacing";
 
 const HIDE_AFTER_MS = 6000;
 const CURSOR_SETTLE_MS = 250;
 const hideTimers = new Map<number, ReturnType<typeof setTimeout>>();
-
-export const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 export async function getAccent(): Promise<string> {
   const stored = await chrome.storage.sync.get("accent");

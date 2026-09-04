@@ -3,6 +3,12 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+- Pointer moves travel to their target across several eased mousemove events instead of jumping there.
+- Delays between actions are spread around their nominal value instead of being identical every time.
+- A per-site budget paces interactions and page loads, waiting for the next turn instead of firing back to back.
+
 ## [0.1.0] - 2026-09-04
 
 First public release.
