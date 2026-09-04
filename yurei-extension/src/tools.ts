@@ -4,13 +4,17 @@ import { errorMessage, sessions, type TabSession } from "./cdp";
 import { callPage, chainOffset, composeFind, composeText, composeTree, fieldNumber, fieldString, frameChain, frameOfRef, localRef, qualifyText, viewportOf, walkFrames } from "./frames";
 import { hideForCapture, markActive, moveCursor, showAfterCapture } from "./indicator";
 import { MOD, parseKeyPress } from "./keys";
-import { movePath, pause, sleep, takeTurn, type Point } from "./pacing";
-import type { TreeFilter } from "./page-api";
+import { createOwnWindow, ownTabs, ownWindowId } from "./own-window";
+import { movePath, pause, siteOf, sleep, takeTurn, type Point } from "./pacing";
+import type { Rect, TreeFilter, TreeOptions } from "./page-api";
 import { captureScreenshot, viewportInfo } from "./screenshot";
-import { truncateText } from "./text-utils";
+import { clip, quote, truncateText } from "./text-utils";
 
 const STOP_COOLDOWN_MS = 30_000;
 const SNAPSHOT_TREE_CHARS = 5000;
+// A research run that opens a tab per result is what trips a site's rate limit, so the ghost keeps only a few tabs.
+const MAX_OWN_TABS = 8;
+const MAX_OWN_TABS_PER_SITE = 3;
 const stoppedUntil = new Map<number, number>();
 
 export function markStopped(tabId: number): void {
@@ -25,16 +29,21 @@ const tabIdOf = (tab: chrome.tabs.Tab): number => {
   return tab.id;
 };
 
+/** Without a tabId the AI stays in Yurei's own window; only before that window exists does it fall back to the user's active tab. */
+async function defaultTab(): Promise<chrome.tabs.Tab | undefined> {
+  const own = await ownWindowId();
+  if (own !== null) {
+    const [tab] = await chrome.tabs.query({ active: true, windowId: own });
+    if (tab) return tab;
+  }
+  const [focused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return focused ?? (await chrome.tabs.query({ active: true }))[0];
+}
+
 async function resolveTab(args: Args, allowRestricted = false): Promise<chrome.tabs.Tab> {
   const requested = optNumber(args, "tabId");
-  let tab: chrome.tabs.Tab | undefined;
-  if (requested !== undefined) {
-    tab = await chrome.tabs.get(requested).catch(() => undefined);
-    if (!tab) throw new ArgError(`No tab with id ${requested}. Call tabs_context to list open tabs.`);
-  } else {
-    [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    tab ??= (await chrome.tabs.query({ active: true }))[0];
-  }
+  const tab = requested === undefined ? await defaultTab() : await chrome.tabs.get(requested).catch(() => undefined);
+  if (requested !== undefined && !tab) throw new ArgError(`No tab with id ${requested}. Call tabs_context to list open tabs.`);
   if (!tab) throw new ArgError("No open tab. Call tabs_create with a url first.");
   const tabId = tabIdOf(tab);
   if (!allowRestricted && RESTRICTED_URL.test(tab.url ?? "")) {
@@ -53,20 +62,32 @@ async function resolveTab(args: Args, allowRestricted = false): Promise<chrome.t
   return tab;
 }
 
-/** Outline of the whole tab: top frame plus every reachable iframe, composed into one indented text. */
-async function outline(tabId: number, filter: TreeFilter, maxChars: number, viewportOnly: boolean): Promise<{ readonly text: string; readonly viewport: string }> {
-  const walk = await walkFrames(tabId, "tree", (clip) => [{ filter, ref: null, maxChars, viewportOnly, clip }]);
+type Outline = { readonly text: string; readonly viewport: string; readonly consent: string | null };
+
+/** Outline of the whole tab: top frame plus every reachable iframe, composed into one indented text. Cookie banners get dismissed on the way. */
+async function outline(tabId: number, filter: TreeFilter, maxChars: number, viewportOnly: boolean): Promise<Outline> {
+  const options = (clip: Rect | null, dismissConsent: boolean): TreeOptions => ({ filter, ref: null, selector: null, maxChars, viewportOnly, clip, dismissConsent });
+  let walk = await walkFrames(tabId, "tree", (clip) => [options(clip, true)]);
+  const consent = walk.results.map((r) => (r.data ? fieldString(r.data, "consent") : "")).find((c) => c.length > 0) ?? null;
+  if (consent !== null) {
+    // The outline just taken still shows the banner; give the page a moment to drop it and look again.
+    await pause(600);
+    walk = await walkFrames(tabId, "tree", (clip) => [options(clip, false)]);
+  }
   const vp = viewportOf(walk.results.find((r) => r.frameId === 0)?.data ?? {});
-  return { text: truncateText(composeTree(walk, filter), maxChars, "use read_page with a ref to focus"), viewport: `${vp.width}x${vp.height}` };
+  return { text: truncateText(composeTree(walk, filter), maxChars, "use read_page with a ref or selector to focus"), viewport: `${vp.width}x${vp.height}`, consent };
 }
+
+const consentNote = (label: string): string => `Note: dismissed a cookie banner by clicking ${quote(label)}.`;
 
 const wantsScreenshot = (args: Args): boolean => optBoolean(args, "screenshot") === true;
 
 async function snapshot(tabId: number, session: TabSession, headline: string, withImage: boolean): Promise<ToolResult> {
+  const tree = await outline(tabId, "interactive", SNAPSHOT_TREE_CHARS, true);
   const tab = await chrome.tabs.get(tabId);
   const notes = session.takeNotes().map((n) => `Note: ${n}`);
+  if (tree.consent !== null) notes.push(consentNote(tree.consent));
   const header = [headline, `Tab ${tabId}: ${tab.title ?? ""}`, `URL: ${tab.url ?? ""}`, ...notes].filter((l) => l.length > 0).join("\n");
-  const tree = await outline(tabId, "interactive", SNAPSHOT_TREE_CHARS, true);
   const elements = tree.text || "(none visible; scroll or use read_page filter=all)";
   const elementsBlock = `Interactive elements in view (use their [ref] with computer or form_input):\n${elements}`;
 
@@ -118,6 +139,24 @@ type Target = { readonly x: number; readonly y: number; readonly label: string }
 
 /** A CSS-pixel point expressed in the last screenshot's pixels, the unit coordinates are given in. */
 const imagePoint = (session: TabSession, { x, y }: Target): string => `(${Math.round(x * session.imageScale)}, ${Math.round(y * session.imageScale)})`;
+
+type ScrollMetrics = { readonly top: number; readonly height: number; readonly view: number };
+
+/** Scroll position of whatever scrolls under the pointer: an inner list if there is one, else the document. */
+async function scrollMetrics(session: TabSession, { x, y }: Point): Promise<ScrollMetrics> {
+  const v = await session.evaluate(`(() => {
+    const doc = document.scrollingElement ?? document.documentElement;
+    let el = document.elementFromPoint(${Math.round(x)}, ${Math.round(y)});
+    for (; el && el !== doc && el !== document.body; el = el.parentElement) {
+      const style = getComputedStyle(el);
+      if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1) break;
+    }
+    const s = el && el !== doc && el !== document.body ? el : doc;
+    return { top: s.scrollTop, height: s.scrollHeight, view: s.clientHeight };
+  })()`);
+  if (!isRecord(v) || typeof v["top"] !== "number" || typeof v["height"] !== "number" || typeof v["view"] !== "number") throw new Error("Could not read the scroll position");
+  return { top: v["top"], height: v["height"], view: v["view"] };
+}
 
 async function toCss(session: TabSession, [x, y]: Coordinate): Promise<Target> {
   const cssX = x / session.imageScale;
@@ -286,6 +325,37 @@ async function computer(args: Args): Promise<ToolResult> {
       return view(`Scrolled ${direction} by ${px}px.`);
     }
 
+    case "scroll_to_bottom": {
+      const screens = Math.min(Math.max(Math.round(optNumber(args, "scroll_amount") ?? 10), 1), 30);
+      const vp = await viewportInfo(session);
+      const target = optString(args, "ref") || optCoordinate(args, "coordinate")
+        ? await resolveTarget(args, session, tabId)
+        : { x: vp.width / 2, y: vp.height / 2, label: "" };
+      await moveTo(session, tabId, target, 0);
+      const start = await scrollMetrics(session, target);
+      let metrics = start;
+      let done = 0;
+      let atEnd = false;
+      while (done < screens) {
+        await mouse(session, "mouseWheel", target.x, target.y, { deltaX: 0, deltaY: Math.round(metrics.view * 0.9) });
+        done++;
+        await pause(350);
+        metrics = await scrollMetrics(session, target);
+        if (metrics.top + metrics.view < metrics.height - 2) continue;
+        // At the end: lazy lists load their next batch about now, so wait before calling the page finished.
+        await pause(900);
+        const after = await scrollMetrics(session, target);
+        if (after.height <= metrics.height) {
+          atEnd = true;
+          break;
+        }
+        metrics = after;
+      }
+      const grew = metrics.height - start.height;
+      const growth = grew > 0 ? `; the page grew by ${grew}px as content loaded` : "";
+      return view(`Scrolled through ${done} screen${done === 1 ? "" : "s"}${growth}. ${atEnd ? "Reached the end of the page." : "More may load: call scroll_to_bottom again to continue."}`);
+    }
+
     case "scroll_to": {
       const target = await refTarget(session, tabId, reqString(args, "ref"), "scrollTo");
       await moveTo(session, tabId, target, 0);
@@ -317,25 +387,49 @@ async function computer(args: Args): Promise<ToolResult> {
 }
 
 async function tabsContext(): Promise<ToolResult> {
-  const [tabs, windows] = await Promise.all([chrome.tabs.query({}), chrome.windows.getAll()]);
+  const [tabs, windows, own] = await Promise.all([chrome.tabs.query({}), chrome.windows.getAll(), ownWindowId()]);
   const focusedWindow = windows.find((w) => w.focused)?.id;
+  const where = (t: chrome.tabs.Tab): string => (t.windowId === own ? "Yurei's window" : t.windowId === focusedWindow ? "user's window, focused" : "user's window");
   const lines = tabs
     .filter((t) => t.id !== undefined)
-    .map((t) => `${t.active ? "*" : " "} [${t.id}] ${t.title || "(untitled)"} — ${t.url ?? ""}${t.windowId === focusedWindow ? "" : " (other window)"}`);
-  return textResult(`${tabs.length} open tab(s); * marks the active tab of each window. Pass tabId to other tools, or omit it to use the active tab of the focused window.\n${lines.join("\n")}`);
+    .sort((a, b) => Number(b.windowId === own) - Number(a.windowId === own))
+    .map((t) => `${t.active ? "*" : " "} [${t.id}] ${t.title || "(untitled)"} — ${t.url ?? ""} (${where(t)})`);
+  const ownership = own === null
+    ? "Yurei has no window of its own yet: tabs_create or navigate with a url opens one."
+    : "Tools without tabId use the active tab of Yurei's window.";
+  return textResult(`${tabs.length} open tab(s); * marks the active tab of each window. ${ownership} Pass tabId to work in one of the user's tabs.\n${lines.join("\n")}`);
+}
+
+const describeTabs = (tabs: ReadonlyArray<chrome.tabs.Tab>): string => tabs.map((t) => `[${t.id}] ${clip(t.title || t.pendingUrl || t.url || "", 60)}`).join(", ");
+
+async function checkTabBudget(destination: string): Promise<void> {
+  const tabs = await ownTabs();
+  if (tabs.length >= MAX_OWN_TABS) {
+    throw new ArgError(`Yurei already has ${tabs.length} tabs open: ${describeTabs(tabs)}. Navigate in one of them, or close some with tabs_close, instead of opening more.`);
+  }
+  const site = siteOf(destination);
+  const sameSite = site ? tabs.filter((t) => siteOf(t.pendingUrl ?? t.url ?? "") === site) : [];
+  if (sameSite.length >= MAX_OWN_TABS_PER_SITE) {
+    throw new ArgError(
+      `Yurei already has ${sameSite.length} tabs open on ${site}: ${describeTabs(sameSite)}. Work in one of them (navigate with its tabId) or close one with tabs_close first: many tabs on one site at once get the user rate-limited or banned.`,
+    );
+  }
 }
 
 async function tabsCreate(args: Args): Promise<ToolResult> {
   const url = optString(args, "url");
   const destination = url ? normalizeUrl(url) : "about:blank";
+  await checkTabBudget(destination);
   if (url) await takeTurn(destination, "load");
-  const tab = await chrome.tabs.create({ url: destination, active: true });
+  const own = await ownWindowId();
+  const tab = own === null ? await createOwnWindow(destination) : await chrome.tabs.create({ windowId: own, url: destination, active: true });
   const tabId = tabIdOf(tab);
-  if (!url) return textResult(`Created empty tab ${tabId}. Use navigate with tabId ${tabId} and a url.`);
+  const where = own === null ? " in Yurei's new window" : "";
+  if (!url) return textResult(`Created empty tab ${tabId}${where}. Use navigate with tabId ${tabId} and a url.`);
   await waitForLoad(tabId);
   const session = sessions.get(tabId);
   await session.ensureAttached();
-  return snapshot(tabId, session, `Created tab ${tabId} and opened ${url}.`, wantsScreenshot(args));
+  return snapshot(tabId, session, `Opened ${url} in tab ${tabId}${where}.`, wantsScreenshot(args));
 }
 
 async function tabsClose(args: Args): Promise<ToolResult> {
@@ -346,11 +440,13 @@ async function tabsClose(args: Args): Promise<ToolResult> {
 }
 
 async function navigate(args: Args): Promise<ToolResult> {
-  const tab = await resolveTab(args, true);
-  const tabId = tabIdOf(tab);
   const url = optString(args, "url");
   const action = optEnum(args, "action", ["back", "forward", "reload"]);
   if (!url && !action) throw new ArgError('navigate needs "url" or "action" (back | forward | reload).');
+  // A url with no tab named goes to Yurei's window rather than taking over whatever the user is reading.
+  if (url && optNumber(args, "tabId") === undefined && (await ownWindowId()) === null) return tabsCreate(args);
+  const tab = await resolveTab(args, true);
+  const tabId = tabIdOf(tab);
   const destination = url ? normalizeUrl(url) : (tab.url ?? "");
   await takeTurn(destination, "load");
   const session = sessions.get(tabId);
@@ -372,13 +468,23 @@ async function readPage(args: Args): Promise<ToolResult> {
   const tabId = tabIdOf(tab);
   const filter = optEnum(args, "filter", ["interactive", "all"]) ?? "interactive";
   const ref = optString(args, "ref") ?? null;
+  const selector = optString(args, "selector") ?? null;
   const maxChars = optNumber(args, "max_chars") ?? 30_000;
-  const viewportOnly = filter === "interactive" && ref === null;
-  const text = ref
-    ? qualifyText(fieldString(await callPage(tabId, frameOfRef(ref), "tree", [{ filter, ref: localRef(ref), maxChars, viewportOnly, clip: null }]), "text"), frameOfRef(ref))
-    : (await outline(tabId, filter, maxChars, viewportOnly)).text;
-  const scope = ref ? `subtree of ${ref}` : viewportOnly ? "interactive elements in the viewport" : "all elements on the page (including off-screen)";
-  return textResult(`Tab ${tabId}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}\n${scope}:\n${text || "(nothing found)"}`);
+  const focused = ref !== null || selector !== null;
+  const viewportOnly = filter === "interactive" && !focused;
+  let text: string;
+  let note = "";
+  if (focused) {
+    const frameId = ref === null ? 0 : frameOfRef(ref);
+    const options: TreeOptions = { filter, ref: ref === null ? null : localRef(ref), selector, maxChars, viewportOnly, clip: null, dismissConsent: false };
+    text = qualifyText(fieldString(await callPage(tabId, frameId, "tree", [options]), "text"), frameId);
+  } else {
+    const whole = await outline(tabId, filter, maxChars, viewportOnly);
+    text = whole.text;
+    if (whole.consent !== null) note = `${consentNote(whole.consent)}\n`;
+  }
+  const scope = ref ? `subtree of ${ref}` : selector ? `elements matching ${quote(selector)}` : viewportOnly ? "interactive elements in the viewport" : "all elements on the page (including off-screen)";
+  return textResult(`Tab ${tabId}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}\n${note}${scope}:\n${text || "(nothing found)"}`);
 }
 
 async function find(args: Args): Promise<ToolResult> {
@@ -389,9 +495,20 @@ async function find(args: Args): Promise<ToolResult> {
 
 async function getPageText(args: Args): Promise<ToolResult> {
   const tab = await resolveTab(args);
+  const tabId = tabIdOf(tab);
   const maxChars = optNumber(args, "max_chars") ?? 20_000;
-  const walk = await walkFrames(tabIdOf(tab), "text", () => [maxChars]);
-  return textResult(`Tab ${tabIdOf(tab)}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}\n\n${composeText(walk, maxChars)}`);
+  const ref = optString(args, "ref") ?? null;
+  const selector = optString(args, "selector") ?? null;
+  const header = `Tab ${tabId}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}`;
+  if (ref !== null) {
+    const r = await callPage(tabId, frameOfRef(ref), "text", [maxChars, { ref: localRef(ref), selector: null }]);
+    return textResult(`${header}\nText of ${ref}:\n\n${fieldString(r, "text")}`);
+  }
+  const walk = await walkFrames(tabId, "text", () => [maxChars, { ref: null, selector }]);
+  const top = walk.results.find((r) => r.frameId === 0)?.data;
+  const scope = top ? fieldString(top, "scope") : "page";
+  const hint = selector === null && scope !== "page" ? ` (${scope}; pass selector="body" for everything, or a selector or ref for one part)` : ` (${scope})`;
+  return textResult(`${header}\nText${hint}:\n\n${composeText(walk, maxChars)}`);
 }
 
 async function formInput(args: Args): Promise<ToolResult> {

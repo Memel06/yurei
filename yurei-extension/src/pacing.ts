@@ -43,6 +43,10 @@ const RATES: Readonly<Record<Turn, Rate>> = {
   action: { burst: 6, refillMs: 700 },
   load: { burst: 3, refillMs: 2000 },
 };
+// Search engines hand out captchas for a burst of result pages that a shop or a blog would not even notice.
+const SEARCH_LOAD: Rate = { burst: 2, refillMs: 5000 };
+const SEARCH_ENGINE = /^(?:google\.[a-z.]+|bing\.com|duckduckgo\.com|yahoo\.com|yandex\.[a-z]+|baidu\.com|brave\.com|ecosia\.org|startpage\.com|qwant\.com)$/i;
+const rateFor = (kind: Turn, site: string): Rate => (kind === "load" && SEARCH_ENGINE.test(site) ? SEARCH_LOAD : RATES[kind]);
 
 const buckets = new Map<string, Bucket>();
 
@@ -52,7 +56,7 @@ const LOCAL = /^(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\]|.+\.(?:local
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
 /** The registrable domain a budget is keyed on, or "" for anything not worth pacing. */
-function siteOf(url: string): string {
+export function siteOf(url: string): string {
   let host: string;
   try {
     host = new URL(url).hostname;
@@ -73,7 +77,7 @@ export async function takeTurn(url: string, kind: Turn): Promise<void> {
   const site = siteOf(url);
   if (!site) return;
   const key = `${kind} ${site}`;
-  const rate = RATES[kind];
+  const rate = rateFor(kind, site);
 
   for (;;) {
     const now = Date.now();

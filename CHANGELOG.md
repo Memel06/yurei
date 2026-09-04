@@ -5,8 +5,21 @@ versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+
+- Yurei browses in a window of its own. Tabs the AI opens go there, tools called without a tab id stay there, and
+  the user's tabs are only touched when named by id. The window comes back where the user last put it.
+- Cookie banners are dismissed on the AI's behalf: the one-click reject when there is one, otherwise accept.
+- `computer(action="scroll_to_bottom")` scrolls through a page screen by screen so lazy lists and feeds load, and
+  stops when the page stops growing.
+- `get_page_text` reads the main content by default and takes a CSS `selector` or a `ref` to read one part;
+  `read_page` takes a `selector` too.
+
 ### Changed
 
+- The AI is refused more than three tabs on one site, or eight in all, and told to reuse or close tabs instead.
+  Search engines get a slower page-load budget than other sites. The skill steers models toward reading narrowly
+  and working in one tab.
 - The CLI wears the website's look: the `幽霊 yurei` brand row and ghost, brush numerals for the setup steps,
   a real menu for picking AI tools, and a spinner with a countdown for every wait, so nothing looks hung.
 

@@ -27,7 +27,7 @@ export const isToolName = (v: unknown): v is ToolName =>
 
 export const COMPUTER_ACTIONS = [
   "screenshot", "left_click", "right_click", "middle_click", "double_click", "triple_click", "hover", "type", "key",
-  "scroll", "scroll_to", "left_click_drag", "wait",
+  "scroll", "scroll_to", "scroll_to_bottom", "left_click_drag", "wait",
 ] as const;
 
 export type Args = Readonly<Record<string, unknown>>;
