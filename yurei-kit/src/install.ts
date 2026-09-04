@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { EXTENSION_ID, NATIVE_HOST_NAME } from "../../shared/protocol";
+import { EXTENSION_ID, NATIVE_HOST_NAME, UNPACKED_EXTENSION_ID } from "../../shared/protocol";
 import { cliPath, ensureDir, hostManifestTargets, isWindows, launcherPath, scriptPath, yureiHome, type HostManifestTarget } from "./paths";
 
 export type InstallReport = {
@@ -86,7 +86,8 @@ export function installNativeHost(): InstallReport {
     description: "Yurei bridge between the Chrome extension and your AI tool",
     path: launcher,
     type: "stdio",
-    allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
+    // Chrome sees the store build and a folder loaded unpacked as two different extensions.
+    allowed_origins: [EXTENSION_ID, UNPACKED_EXTENSION_ID].map((id) => `chrome-extension://${id}/`),
   };
   const browsers: string[] = [];
   for (const target of hostManifestTargets()) {

@@ -3,6 +3,14 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+
+- The native host accepts the Chrome Web Store build. The store assigns its own extension id rather than
+  honouring the manifest `key`, so a whitelist pinned to the unpacked id refused the connection and left
+  every tool call failing. Both ids are whitelisted now.
+
 ## [0.2.0] - 2026-09-04
 
 Yurei now works at a human pace instead of an instant one.
