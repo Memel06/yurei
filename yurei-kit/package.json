@@ -42,7 +42,9 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@clack/prompts": "^0.11.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "picocolors": "^1.1.1",
     "zod": "^3.25.76"
   }
 }

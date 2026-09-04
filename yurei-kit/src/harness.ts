@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { accessSync, chmodSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -41,6 +41,39 @@ function findCommand(name: string): string | null {
 }
 
 const anyExists = (...paths: ReadonlyArray<string>): boolean => paths.some((p) => existsSync(p));
+
+export type Progress = (message: string) => void;
+
+const RUN_TIMEOUT_MS = 120_000;
+
+/** Runs a command to the end, surfacing its latest output line as progress; on failure the error carries the output's tail. */
+function run(command: string, args: ReadonlyArray<string>, progress: Progress): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Chrome-launched or GUI-launched tools inherit no stdin worth reading; a .cmd on Windows only starts through a shell.
+    const child = spawn(command, [...args], { stdio: ["ignore", "pipe", "pipe"], shell: isWindows, windowsHide: true });
+    let output = "";
+    const onData = (chunk: Buffer): void => {
+      output += chunk.toString();
+      const last = output.trimEnd().split("\n").at(-1)?.trim();
+      if (last) progress(last);
+    };
+    child.stdout.on("data", onData);
+    child.stderr.on("data", onData);
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`gave up after ${RUN_TIMEOUT_MS / 1000}s`));
+    }, RUN_TIMEOUT_MS);
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve();
+      else reject(new Error(output.trim().split("\n").slice(-3).join(" ") || `exit code ${code}`));
+    });
+  });
+}
 
 /** JSONC to JSON in one string-aware pass: comments and trailing commas go, string contents are never touched. */
 function stripJsonComments(source: string): { readonly json: string; readonly hadComments: boolean } {
@@ -144,13 +177,18 @@ const piHasAdapter = (): boolean => {
 };
 
 /** pi has no MCP support of its own; the pi-mcp-adapter package reads ~/.pi/agent/mcp.json. */
-function configurePi(): string {
+async function configurePi(progress: Progress): Promise<string> {
   const file = patchMcpServers(join(PI_AGENT_DIR(), "mcp.json"));
   if (piHasAdapter()) return file;
   const pi = findCommand("pi");
   if (!pi) return `${file} (then run: pi install ${PI_ADAPTER})`;
-  execFileSync(pi, ["install", PI_ADAPTER], { stdio: "ignore" });
-  return `${file} + installed ${PI_ADAPTER}`;
+  progress(`pi install ${PI_ADAPTER}`);
+  try {
+    await run(pi, ["install", PI_ADAPTER], progress);
+  } catch (e) {
+    throw new Error(`${file} is written, but pi could not install ${PI_ADAPTER} (${e instanceof Error ? e.message : String(e)}). Run: pi install ${PI_ADAPTER}`);
+  }
+  return `${file} + ${PI_ADAPTER}`;
 }
 
 const tomlString = (s: string): string => JSON.stringify(s);
@@ -187,10 +225,12 @@ export function installSkill(): string {
 export type Harness = {
   readonly id: HarnessId;
   readonly name: string;
+  /** Where the config goes, shown next to the name when picking tools. */
+  readonly hint: string;
   /** True when this tool looks installed for this user. */
   readonly installed: () => boolean;
   /** Writes the config and returns what it did; null when only a printable snippet exists. */
-  readonly configure: (() => string) | null;
+  readonly configure: ((progress: Progress) => Promise<string>) | null;
   readonly snippet: () => string;
 };
 
@@ -203,8 +243,9 @@ export const HARNESSES: ReadonlyArray<Harness> = [
   {
     id: "opencode",
     name: "opencode",
+    hint: "~/.config/opencode/opencode.json",
     installed: () => findCommand("opencode") !== null || existsSync(join(configHome(), "opencode")),
-    configure: configureOpencode,
+    configure: async () => configureOpencode(),
     snippet: () => {
       const { command, args } = serverCommand();
       return `${JSON.stringify({ mcp: { yurei: { type: "local", command: [command, ...args], enabled: true } } }, null, 2)}
@@ -215,6 +256,7 @@ Add the "mcp" block to ~/.config/opencode/opencode.json (or .jsonc).`;
   {
     id: "pi",
     name: "pi",
+    hint: `~/.pi/agent/mcp.json + ${PI_ADAPTER}`,
     installed: () => findCommand("pi") !== null || existsSync(PI_AGENT_DIR()),
     configure: configurePi,
     snippet: () => mcpServersSnippet(`Save as ~/.pi/agent/mcp.json, and install the MCP adapter once: pi install ${PI_ADAPTER}`),
@@ -222,27 +264,31 @@ Add the "mcp" block to ~/.config/opencode/opencode.json (or .jsonc).`;
   {
     id: "cursor",
     name: "Cursor",
+    hint: "~/.cursor/mcp.json",
     installed: () => anyExists(join(homedir(), ".cursor"), "/Applications/Cursor.app") || findCommand("cursor") !== null,
-    configure: () => patchMcpServers(join(homedir(), ".cursor", "mcp.json")),
+    configure: async () => patchMcpServers(join(homedir(), ".cursor", "mcp.json")),
     snippet: () => mcpServersSnippet("Save as ~/.cursor/mcp.json (all projects) or <project>/.cursor/mcp.json."),
   },
   {
     id: "windsurf",
     name: "Windsurf",
+    hint: "~/.codeium/windsurf/mcp_config.json",
     installed: () => anyExists(join(homedir(), ".codeium", "windsurf"), "/Applications/Windsurf.app") || findCommand("windsurf") !== null,
-    configure: () => patchMcpServers(join(homedir(), ".codeium", "windsurf", "mcp_config.json")),
+    configure: async () => patchMcpServers(join(homedir(), ".codeium", "windsurf", "mcp_config.json")),
     snippet: () => mcpServersSnippet("Merge into ~/.codeium/windsurf/mcp_config.json."),
   },
   {
     id: "codex",
     name: "Codex CLI",
+    hint: "~/.codex/config.toml",
     installed: () => findCommand("codex") !== null || existsSync(join(homedir(), ".codex")),
-    configure: configureCodex,
+    configure: async () => configureCodex(),
     snippet: () => `${codexBlock()}\n\nAppend to ~/.codex/config.toml.`,
   },
   {
     id: "generic",
     name: "any other MCP client",
+    hint: "",
     installed: () => false,
     configure: null,
     snippet: () => mcpServersSnippet("Any MCP client that can launch a local stdio server accepts this shape (Zed, Continue, Cline, Gemini CLI, ...)."),
