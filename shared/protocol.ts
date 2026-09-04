@@ -1,6 +1,8 @@
 export const PROTOCOL = "yurei/3";
-/** Fixed by the `key` in manifest.json, so the store build and an unpacked build share it. */
-export const EXTENSION_ID = "acgjkkmeekbcbpknmackieajkcmbllhm";
+/** Minted by the Chrome Web Store, which assigns its own id and rejects a manifest `key`. */
+export const EXTENSION_ID = "fhdcknamidemigkgcfhlbdoibpfchffd";
+/** Hash of the `key` in manifest.json, which is the id a folder loaded unpacked always gets. */
+export const UNPACKED_EXTENSION_ID = "acgjkkmeekbcbpknmackieajkcmbllhm";
 export const CHROME_WEB_STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;
 export const NATIVE_HOST_NAME = "com.yurei.bridge";
 
