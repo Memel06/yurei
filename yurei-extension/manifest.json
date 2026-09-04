@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Yurei",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Your AI, haunting your browser. Lets any AI tool that speaks MCP browse, click and type in the Chrome you already use.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArasyAbTyUuXvmAgR51eNAyO4/kMrIdiPBElc788RWYeMZ6cTjDvV3UWq9xwePtfy/iOO6wQXGx8nIZvJLBWdEpQ2WmcNujeniLvmTfuLDq/0vOEdSjBPijnywcGuPFOoBFfOwDD4Mowt3FqNZAxHFBbczmS2GjJ80SoLYMXHpW4jL0t3nwRyehSmR6NlZOz0ZzNxLLbsvkBLtxXXO4TigSh0DhzJBhwd0tSDBjQ9DpFtZU+PCZgdoKSAu/1wBnBJ2CO6vP4vsnqACIy6zvofjHXsHuAYzweiMEp10EPNp4wbiSbIFmMVoQnnlNJgT2EMN55Jd0M827lmTwzutm5m2wIDAQAB",

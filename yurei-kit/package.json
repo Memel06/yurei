@@ -1,6 +1,6 @@
 {
   "name": "yurei-chrome",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Let your AI tool browse in your own Chrome: the MCP server, native messaging host and setup wizard for the Yurei extension",
   "keywords": [
     "mcp",
