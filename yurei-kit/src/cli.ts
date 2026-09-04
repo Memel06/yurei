@@ -1,3 +1,4 @@
+import * as p from "@clack/prompts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { spawnSync } from "node:child_process";
 import { CHROME_WEB_STORE_URL, isToolName, type ToolResult } from "../../shared/protocol";
@@ -8,6 +9,7 @@ import { createMcpServer, VERSION } from "./mcp";
 import { runNativeHost } from "./native-host";
 import { extensionDir, isWindows, launcherPath } from "./paths";
 import { runSetup } from "./setup";
+import { banner, bold, clip, cmd, dim, errorMessage, glow, shu, spinner } from "./ui";
 
 type Cli = {
   readonly command: string;
@@ -20,7 +22,7 @@ const log = (message: string): void => {
 };
 
 const fail = (message: string): never => {
-  process.stderr.write(`yurei: ${message}\n`);
+  process.stderr.write(`${shu("✖")} ${message}\n`);
   process.exit(1);
 };
 
@@ -65,15 +67,21 @@ const printResult = (result: ToolResult): void => {
   }
 };
 
-async function withExtension(harness: string, run: (client: HostClient) => Promise<number>): Promise<never> {
+/** Quiet mode keeps stdout clean for `call`, whose output is meant to be piped. */
+async function withExtension(harness: string, run: (client: HostClient) => Promise<number>, quiet = false): Promise<never> {
   const client = new HostClient({ harness: () => harness, log: () => undefined });
-  console.log("… looking for the Yurei extension (up to 15s)");
+  const s = quiet ? null : spinner();
+  s?.start("Looking for the Yurei extension");
   if (!(await client.waitForExtension(15_000))) {
-    console.log(`✖ ${client.connected ? "native host found but the extension has not said hello" : "no native host running"}.\n${NOT_CONNECTED_HELP}`);
+    const why = client.connected ? "Native host found, but the extension has not said hello" : "No native host running";
+    if (s) {
+      s.stop(why, 2);
+      p.log.message(NOT_CONNECTED_HELP);
+    } else process.stderr.write(`${shu("✖")} ${why}\n${NOT_CONNECTED_HELP}\n`);
     client.close();
     process.exit(1);
   }
-  console.log(`✔ extension v${client.extensionVersion} connected`);
+  s?.stop(`Extension v${client.extensionVersion} connected`);
   const code = await run(client);
   client.close();
   process.exit(code);
@@ -88,19 +96,26 @@ function launcherVersion(): string | null {
 }
 
 async function doctor(): Promise<never> {
+  p.intro(`${bold("yurei doctor")} ${dim(`v${VERSION}`)}`);
   const manifests = installedManifests();
-  if (manifests.length === 0) console.log("✖ native host not registered with any browser. Run: yurei setup");
-  else console.log(`✔ native host registered for: ${manifests.map((m) => m.browser).join(", ")}`);
+  if (manifests.length === 0) p.log.error(`Native host not registered with any browser. Run ${cmd("yurei setup")}`);
+  else p.log.success(`Native host registered for ${manifests.map((m) => m.browser).join(", ")}`);
   const version = launcherVersion();
-  console.log(version ? `✔ launcher ${launcherPath()} runs v${version}` : `✖ launcher ${launcherPath()} is missing or broken. Run: yurei setup`);
+  if (version) p.log.success(`Launcher ${dim(launcherPath())} runs v${version}`);
+  else p.log.error(`Launcher ${dim(launcherPath())} is missing or broken. Run ${cmd("yurei setup")}`);
   const dir = extensionDir();
-  console.log(dir ? `  extension to load unpacked: ${dir}` : `  extension: ${CHROME_WEB_STORE_URL}`);
+  p.log.info(dir ? `Extension to load unpacked: ${dim(dir)}` : `Extension: ${glow(CHROME_WEB_STORE_URL)}`);
   return withExtension("yurei doctor", async (client) => {
     const result = await client.call("tabs_context", {});
-    console.log(result.isError ? "✖ tabs_context failed:" : "✔ tabs_context works:");
-    printResult(result);
-    if (!result.isError) console.log("\nAll good. Add Yurei to your AI tools with: yurei setup");
-    return result.isError ? 1 : 0;
+    const [first = "", ...tabs] = result.content.flatMap((b) => (b.type === "text" ? b.text.split("\n") : []));
+    if (result.isError) {
+      p.log.error(`tabs_context failed: ${first}`);
+      p.outro(shu("Chrome did not answer."));
+      return 1;
+    }
+    p.note(tabs.map((line) => clip(line)).join("\n"), first.split(";")[0]);
+    p.outro(`All good. Add Yurei to your AI tools with ${cmd("yurei setup")}`);
+    return 0;
   });
 }
 
@@ -114,26 +129,36 @@ const call = (positional: ReadonlyArray<string>): Promise<never> => {
     const result = await client.call(tool, args);
     printResult(result);
     return result.isError ? 1 : 0;
-  });
+  }, true);
 };
 
 const reloadExtension = (): Promise<never> =>
   withExtension("yurei reload", async (client) => {
     if (!(await client.reload())) return 1;
-    console.log("✔ asked the extension to reload itself from disk; it reconnects within a few seconds");
+    p.outro("Asked the extension to reload itself from disk. It reconnects within a few seconds.");
     return 0;
   });
 
-const HELP = `Yurei v${VERSION}: lets your AI tool browse in your own Chrome.
+const COMMANDS: ReadonlyArray<readonly [usage: string, what: string]> = [
+  ["setup [--yes]", "install everything: native host, extension check, the AI tools you pick"],
+  ["doctor", "check the installation and list your tabs through the extension"],
+  ["config <tool>", `print the MCP config for one AI tool: ${HARNESS_IDS.join(", ")}`],
+  ["call <tool> '<json>'", `run one browser tool by hand, e.g. yurei call navigate '{"url":"example.com"}'`],
+  ["serve", "MCP server over stdio (this is what your AI tool launches)"],
+  ["reload-extension", "development: reload the unpacked extension after a rebuild"],
+  ["native-host", "(launched by Chrome, not by you)"],
+];
 
-Usage:
-  yurei setup [--yes]           install everything: native host, extension check, the AI tools you pick
-  yurei doctor                  check the installation and list your tabs through the extension
-  yurei config <tool>           print the MCP config for one AI tool: ${HARNESS_IDS.join(", ")}
-  yurei call <tool> '<json>'    run one browser tool by hand, e.g. yurei call navigate '{"url":"example.com"}'
-  yurei serve                   MCP server over stdio (this is what your AI tool launches)
-  yurei reload-extension        development: reload the unpacked extension after a rebuild
-  yurei native-host             (launched by Chrome, not by you)`;
+function help(): string {
+  const width = Math.max(...COMMANDS.map(([usage]) => usage.length));
+  return [
+    banner(),
+    ...COMMANDS.map(([usage, what]) => `  ${glow("$")} yurei ${bold(usage.padEnd(width))}  ${dim(what)}`),
+    "",
+    `  ${dim("New here?")} ${cmd("npx yurei-chrome setup")}`,
+    "",
+  ].join("\n");
+}
 
 async function main(): Promise<void> {
   const cli = parseCli(process.argv.slice(2));
@@ -142,7 +167,7 @@ async function main(): Promise<void> {
     return;
   }
   if (cli.flags.has("help") || cli.command === "help" || cli.command === "-h" || cli.command === "") {
-    console.log(HELP);
+    console.log(help());
     return;
   }
   switch (cli.command) {
@@ -161,15 +186,15 @@ async function main(): Promise<void> {
       if (!isHarnessId(harness)) return fail(`config needs one of: ${HARNESS_IDS.join(", ")}`);
       installLauncher();
       console.log(harnessById(harness).snippet());
-      console.log(`\nSkill installed at ${installSkill()} (tells the AI when to use the browser).`);
+      console.log(`\n${dim("Skill installed at")} ${installSkill()} ${dim("(tells the AI when to reach for the browser)")}`);
       return;
     }
     case "reload-extension":
       return reloadExtension();
     default:
-      process.stderr.write(`yurei: unknown command "${cli.command}"\n\n${HELP}\n`);
+      process.stderr.write(`${shu("✖")} unknown command "${cli.command}"\n${help()}\n`);
       process.exit(1);
   }
 }
 
-main().catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));
+main().catch((e: unknown) => fail(errorMessage(e)));

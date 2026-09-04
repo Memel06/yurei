@@ -5,7 +5,15 @@ versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Changed
+
+- The CLI wears the website's look: the `幽霊 yurei` brand row and ghost, brush numerals for the setup steps,
+  a real menu for picking AI tools, and a spinner with a countdown for every wait, so nothing looks hung.
+
 ### Fixed
+
+- Adding Yurei to pi no longer freezes the wizard: installing pi-mcp-adapter now shows its progress live and
+  gives up after two minutes with the command to run by hand.
 
 - The native host accepts the Chrome Web Store build. The store assigns its own extension id rather than
   honouring the manifest `key`, so a whitelist pinned to the unpacked id refused the connection and left
