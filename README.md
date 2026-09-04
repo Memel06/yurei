@@ -55,9 +55,16 @@ Ask your AI as you normally would. When a task needs a browser, it uses Yurei:
 
 Say "in my browser" when you want to be explicit.
 
-While the ghost works, the tab glows and a **Stop Yurei** button appears at the bottom of the page. The AI
-acts inside your logged-in accounts. It is told to ask before paying, sending messages or deleting anything.
-Keep an eye on it anyway.
+Yurei browses in a window of its own, so it never switches the tab you are reading. The first time, that
+window comes to the front; put it wherever you like and it comes back there next time. Your own tabs are
+touched only when you ask for one of them, like the news tab above.
+
+While the ghost works, the tab glows and a **Stop Yurei** button appears at the bottom of the page. Cookie
+banners are dismissed for it, with "reject" when that is one click away. The AI acts inside your logged-in
+accounts. It is told to ask before paying, sending messages or deleting anything. Keep an eye on it anyway.
+
+Want it further away still? Make a Chrome profile just for Yurei and add the extension to that profile only.
+The setup command is the same.
 
 ## Commands
 
@@ -80,10 +87,10 @@ everything it can click or type into. Buttons and fields inside embedded frames 
 | --- | --- |
 | `tabs_context`, `tabs_create`, `tabs_close` | List, open and close tabs |
 | `navigate` | Go to a URL, back, forward, reload |
-| `computer` | Click, type, press keys, scroll, drag, wait, take a screenshot |
-| `read_page` | Outline of the page, interactive elements or everything |
+| `computer` | Click, type, press keys, scroll, scroll through a lazy page, drag, wait, take a screenshot |
+| `read_page` | Outline of the page, of one element, or of everything |
 | `find` | Locate an element from a plain-language description |
-| `get_page_text` | The readable text of the page |
+| `get_page_text` | The readable text of the page: its main content, or one part by selector |
 | `form_input` | Set the value of a field |
 | `javascript_tool` | Run code in the page and get the result back |
 | `read_console_messages`, `read_network_requests` | What the page logged and requested |

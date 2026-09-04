@@ -8,11 +8,18 @@ export type Viewport = { readonly width: number; readonly height: number };
 export type TreeOptions = {
   readonly filter: TreeFilter;
   readonly ref: string | null;
+  /** CSS selector; every match becomes a root of the outline. */
+  readonly selector: string | null;
   readonly maxChars: number;
   readonly viewportOnly: boolean;
   /** Part of this frame that is actually on screen, in its own coordinates; null means the whole viewport. */
   readonly clip: Rect | null;
+  /** Click the reject (or accept) button of a cookie banner first, once per document. */
+  readonly dismissConsent: boolean;
 };
+
+/** What get_page_text reads: one ref, the elements matching a selector, or (both null) the main content. */
+export type TextScope = { readonly ref: string | null; readonly selector: string | null };
 
 /** An iframe element in a document, described so the service worker can tell which frame it hosts. */
 export type FrameSlot = {
@@ -39,9 +46,11 @@ export type FindHit = {
 };
 
 type Fail = { readonly ok: false; readonly error: string };
-export type TreeResult = { readonly ok: true; readonly text: string; readonly viewport: Viewport; readonly frames: ReadonlyArray<FrameSlot> } | Fail;
+export type TreeResult =
+  | { readonly ok: true; readonly text: string; readonly viewport: Viewport; readonly frames: ReadonlyArray<FrameSlot>; readonly consent: string | null }
+  | Fail;
 export type FindResult = { readonly ok: true; readonly hits: ReadonlyArray<FindHit>; readonly total: number } | Fail;
-export type TextResult = { readonly ok: true; readonly text: string; readonly total: number } | Fail;
+export type TextResult = { readonly ok: true; readonly text: string; readonly total: number; readonly scope: string } | Fail;
 export type FramesResult = { readonly ok: true; readonly viewport: Viewport; readonly frames: ReadonlyArray<FrameSlot>; readonly self: FrameSelf } | Fail;
 /** Centre of the element in this frame's viewport, after scrolling it into view. */
 export type RectResult = { readonly ok: true; readonly x: number; readonly y: number; readonly label: string } | Fail;
@@ -54,7 +63,7 @@ export type SetValueResult = { readonly ok: true; readonly description: string }
 export type PageApi = {
   tree(options: TreeOptions): TreeResult;
   find(query: string, clip: Rect | null): FindResult;
-  text(maxChars: number): TextResult;
+  text(maxChars: number, scope: TextScope): TextResult;
   rect(ref: string): RectResult;
   scrollTo(ref: string): RectResult;
   setValue(ref: string, value: string | boolean): SetValueResult;
