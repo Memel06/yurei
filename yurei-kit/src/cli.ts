@@ -1,15 +1,18 @@
 import * as p from "@clack/prompts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { spawnSync } from "node:child_process";
-import { CHROME_WEB_STORE_URL, isToolName, type ToolResult } from "../../shared/protocol";
+import { CHROME_WEB_STORE_URL, isToolName, UPDATE_COMMAND, type ToolResult } from "../../shared/protocol";
+import { isNewer } from "../../shared/semver";
 import { harnessById, HARNESS_IDS, installSkill, isHarnessId } from "./harness";
 import { HostClient, NOT_CONNECTED_HELP } from "./host-client";
 import { installLauncher, installedManifests } from "./install";
-import { createMcpServer, VERSION } from "./mcp";
+import { createMcpServer } from "./mcp";
 import { runNativeHost } from "./native-host";
 import { extensionDir, isWindows, launcherPath } from "./paths";
 import { runSetup } from "./setup";
 import { banner, bold, clip, cmd, dim, errorMessage, glow, shu, spinner } from "./ui";
+import { latestVersion, runUpdate } from "./update";
+import { VERSION } from "./version";
 
 type Cli = {
   readonly command: string;
@@ -105,7 +108,14 @@ async function doctor(): Promise<never> {
   else p.log.error(`Launcher ${dim(launcherPath())} is missing or broken. Run ${cmd("yurei setup")}`);
   const dir = extensionDir();
   p.log.info(dir ? `Extension to load unpacked: ${dim(dir)}` : `Extension: ${glow(CHROME_WEB_STORE_URL)}`);
+  const latest = await latestVersion();
+  if (latest !== null && isNewer(latest, VERSION)) p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Update with ${cmd(UPDATE_COMMAND)}`);
+  else p.log.success(`Command line tool v${VERSION}${latest === null ? "" : ", the newest version"}`);
   return withExtension("yurei doctor", async (client) => {
+    if (client.hostVersion !== VERSION) {
+      const running = client.hostVersion ? `v${client.hostVersion}` : "older than 0.3";
+      p.log.warn(`The native host Chrome is running is ${running}, not v${VERSION}. Run ${cmd(UPDATE_COMMAND)}, or reload the extension in chrome://extensions.`);
+    }
     const result = await client.call("tabs_context", {});
     const [first = "", ...tabs] = result.content.flatMap((b) => (b.type === "text" ? b.text.split("\n") : []));
     if (result.isError) {
@@ -141,6 +151,7 @@ const reloadExtension = (): Promise<never> =>
 
 const COMMANDS: ReadonlyArray<readonly [usage: string, what: string]> = [
   ["setup [--yes]", "install everything: native host, extension check, the AI tools you pick"],
+  ["update", "get the newest command line tool and skill (Chrome updates the extension by itself)"],
   ["doctor", "check the installation and list your tabs through the extension"],
   ["config <tool>", `print the MCP config for one AI tool: ${HARNESS_IDS.join(", ")}`],
   ["call <tool> '<json>'", `run one browser tool by hand, e.g. yurei call navigate '{"url":"example.com"}'`],
@@ -173,6 +184,8 @@ async function main(): Promise<void> {
   switch (cli.command) {
     case "setup":
       process.exit(await runSetup({ assumeYes: cli.flags.has("yes") }));
+    case "update":
+      process.exit(await runUpdate());
     case "serve":
       return serve();
     case "native-host":

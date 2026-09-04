@@ -10,6 +10,9 @@ export type BridgeStatus = {
   readonly connected: boolean;
   readonly error: string | null;
   readonly sessions: ReadonlyArray<Session>;
+  readonly hostVersion: string;
+  readonly compatible: boolean;
+  readonly latest: string | null;
 };
 
 /**
@@ -20,12 +23,25 @@ export class NativeBridge {
   private port: chrome.runtime.Port | null = null;
   private sessions: ReadonlyArray<Session> = [];
   private error: string | null = null;
+  private hostVersion = "";
+  private hostProtocol = "";
+  private latest: string | null = null;
   private queue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly handler: Handler) {}
+  constructor(
+    private readonly handler: Handler,
+    private readonly onChange: () => void = () => undefined,
+  ) {}
 
   status(): BridgeStatus {
-    return { connected: this.port !== null && this.error === null, error: this.error, sessions: this.sessions };
+    return {
+      connected: this.port !== null && this.error === null,
+      error: this.error,
+      sessions: this.sessions,
+      hostVersion: this.hostVersion,
+      compatible: this.hostProtocol === "" || this.hostProtocol === PROTOCOL,
+      latest: this.latest,
+    };
   }
 
   connect(): void {
@@ -43,6 +59,9 @@ export class NativeBridge {
       this.error = chrome.runtime.lastError?.message ?? "Native host disconnected";
       this.port = null;
       this.sessions = [];
+      this.hostVersion = "";
+      this.hostProtocol = "";
+      this.onChange();
     });
     this.send({ type: "hello", protocol: PROTOCOL, extensionId: chrome.runtime.id, version: chrome.runtime.getManifest().version });
   }
@@ -54,9 +73,16 @@ export class NativeBridge {
       case "welcome":
         this.error = null;
         this.sessions = message.sessions;
+        this.hostVersion = message.version;
+        this.hostProtocol = message.protocol;
+        this.onChange();
         return;
       case "sessions":
         this.sessions = message.sessions;
+        return;
+      case "latest":
+        this.latest = message.version;
+        this.onChange();
         return;
       case "ping":
         this.send({ type: "pong" });

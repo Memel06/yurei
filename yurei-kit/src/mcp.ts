@@ -1,11 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import pkg from "../package.json";
-import { COMPUTER_ACTIONS, type ToolName, type ToolResult } from "../../shared/protocol";
+import { COMPUTER_ACTIONS, UPDATE_COMMAND, type ToolName, type ToolResult } from "../../shared/protocol";
+import { isNewer } from "../../shared/semver";
 import { GUIDE } from "./guide";
 import type { HostClient } from "./host-client";
 
-export const VERSION: string = pkg.version;
+import { VERSION } from "./version";
 
 type McpContent =
   | { readonly type: "text"; readonly text: string }
@@ -25,7 +25,19 @@ const screenshot = z.boolean().optional().describe("Also return a screenshot of 
 
 export function createMcpServer(bridge: HostClient): McpServer {
   const server = new McpServer({ name: "yurei", version: VERSION }, { instructions: GUIDE });
-  const forward = (tool: ToolName) => async (args: Record<string, unknown>) => toMcp(await bridge.call(tool, args));
+  let updateMentioned = false;
+  /** Once per session, the first result after the host learns of a newer version carries the suggestion for the user. */
+  const updateNote = (): McpContent | null => {
+    const latest = bridge.latest;
+    if (updateMentioned || latest === null || !isNewer(latest, VERSION)) return null;
+    updateMentioned = true;
+    return { type: "text", text: `Note: Yurei v${latest} is available (this is v${VERSION}). Tell the user they can update with \`${UPDATE_COMMAND}\`.` };
+  };
+  const forward = (tool: ToolName) => async (args: Record<string, unknown>) => {
+    const result = toMcp(await bridge.call(tool, args));
+    const note = updateNote();
+    return note ? { ...result, content: [...result.content, note] } : result;
+  };
 
   server.registerTool(
     "tabs_context",

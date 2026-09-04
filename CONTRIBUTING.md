@@ -54,3 +54,6 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 4. `npm publish -w yurei-kit` publishes the CLI (`prepublishOnly` builds it).
 5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`.
 6. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
+7. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
+   in `shared/protocol.ts` only when a message changes in a way the other side cannot ignore; both sides then report
+   the mismatch to the user instead of failing silently, so keep new fields optional when you can.

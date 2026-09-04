@@ -1,4 +1,5 @@
-import { isRecord, type Session } from "../../shared/protocol";
+import { isRecord, UPDATE_COMMAND, type Session } from "../../shared/protocol";
+import { isNewer } from "../../shared/semver";
 
 export type IndicatorMessage =
   | { readonly type: "yurei:show"; readonly color: string }
@@ -13,7 +14,28 @@ export type StatusResponse = {
   readonly connected: boolean;
   readonly error: string | null;
   readonly sessions: ReadonlyArray<Session>;
+  /** Version of the command line tool Chrome is running as native host; "" before 0.3 or when not connected. */
+  readonly hostVersion: string;
+  /** False when the host speaks another protocol version, so tool calls are refused until one side is updated. */
+  readonly compatible: boolean;
+  /** A newer command line tool on npm, when the host's daily check found one. */
+  readonly latest: string | null;
 };
+
+export type UpdateHint = { readonly text: string; readonly command: string | null };
+
+/** What the user should do, if anything, to get the extension and the command line tool back in step. */
+export function updateHint(status: StatusResponse): UpdateHint | null {
+  if (status.connected && !status.compatible) {
+    return isNewer(status.version, status.hostVersion)
+      ? { text: `The command line tool (v${status.hostVersion}) is older than this extension (v${status.version}). Update it with `, command: UPDATE_COMMAND }
+      : { text: `This extension (v${status.version}) is older than the command line tool (v${status.hostVersion}). Chrome updates it within a few hours; reloading it in chrome://extensions may do it now.`, command: null };
+  }
+  if (status.latest !== null && status.hostVersion && isNewer(status.latest, status.hostVersion)) {
+    return { text: `Yurei v${status.latest} is out. Update with `, command: UPDATE_COMMAND };
+  }
+  return null;
+}
 
 export type RuntimeMessage =
   | { readonly type: "yurei:stop" }

@@ -1,4 +1,4 @@
-import type { RuntimeMessage, StatusResponse } from "../messages";
+import { updateHint, type RuntimeMessage, type StatusResponse } from "../messages";
 
 type HelpPart = string | { readonly code: string };
 
@@ -35,6 +35,8 @@ const explain = (error: string | null): ReadonlyArray<HelpPart> => {
 
 const helpFor = (res: StatusResponse): ReadonlyArray<HelpPart> => {
   if (!res.connected) return explain(res.error);
+  const hint = updateHint(res);
+  if (hint) return hint.command ? [hint.text, { code: hint.command }] : [hint.text];
   if (res.sessions.length === 0) return ["Start your AI tool. If it does not see Yurei, ", ...RUN_SETUP, " again."];
   return ["Your AI can browse in this Chrome. The glowing tab is the one it is using. Press the seal to stop everything."];
 };
@@ -53,7 +55,8 @@ const renderHelp = (parts: ReadonlyArray<HelpPart>): void => {
 async function refresh(): Promise<void> {
   const res = await send({ type: "yurei:status" }).catch(() => undefined);
   if (!isStatus(res)) return;
-  version.textContent = `v${res.version}`;
+  version.textContent = res.connected && res.hostVersion ? `v${res.version} · cli v${res.hostVersion}` : `v${res.version}`;
+  help.classList.toggle("warn", res.connected && updateHint(res) !== null);
   if (!accentSynced && accent instanceof HTMLInputElement) {
     accent.value = res.accent;
     accentSynced = true;

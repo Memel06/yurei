@@ -14,6 +14,14 @@ versions follow [Semantic Versioning](https://semver.org).
   stops when the page stops growing.
 - `get_page_text` reads the main content by default and takes a CSS `selector` or a `ref` to read one part;
   `read_page` takes a `selector` too.
+- `yurei update` fetches the newest command line tool through npx, installs it, refreshes the skill and restarts the
+  native host, so the new version is in use without restarting Chrome.
+- The native host asks npm once a day whether a newer version is out (`YUREI_NO_UPDATE_CHECK=1` turns it off). When
+  it is, the toolbar icon shows an arrow, the popup, `yurei setup` and `yurei doctor` say what to run, and the first
+  tool result of each AI session carries the suggestion.
+- The extension and the command line tool tell each other their versions. Setup and `yurei doctor` report a native
+  host that is still the old version, and a protocol mismatch after an update is explained in the popup and in tool
+  results instead of failing silently.
 
 ### Changed
 
