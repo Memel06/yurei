@@ -6,6 +6,9 @@ import { HostClient } from "./host-client";
 import { installNativeHost, type InstallReport } from "./install";
 import { extensionDir, isWindows } from "./paths";
 import { banner, bold, cmd, dim, errorMessage, glow, numeral, shu, spinner } from "./ui";
+import { latestVersion, refreshHost } from "./update";
+import { VERSION } from "./version";
+import { isNewer } from "../../shared/semver";
 
 const EXTENSION_WAIT_MS = 90_000;
 const ASK = '"open example.com and tell me the page title"';
@@ -58,12 +61,16 @@ async function extensionStep(client: HostClient, assumeYes: boolean): Promise<bo
   s.start("Looking for the Yurei extension");
   if (await client.waitForExtension(2000)) {
     s.stop(`Yurei v${client.extensionVersion} is connected`);
+    await refreshHost(client);
     return true;
   }
   s.stop("The extension is not connected yet", 1);
   extensionInstructions();
   for (;;) {
-    if (await waitForExtension(client)) return true;
+    if (await waitForExtension(client)) {
+      await refreshHost(client);
+      return true;
+    }
     if (assumeYes || !interactive()) return false;
     const again = await p.confirm({ message: "Keep waiting?", initialValue: true });
     if (again !== true) return false;
@@ -167,6 +174,8 @@ export async function runSetup(options: SetupOptions): Promise<number> {
     p.cancel("Setup stopped. Run it again any time.");
     return 1;
   }
+  const latest = await latestVersion();
+  if (latest !== null && isNewer(latest, VERSION)) p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Get it with ${cmd("npx yurei-chrome@latest setup")}`);
   commandHint(report);
   if (works) {
     p.outro(`${bold("boo.")} ${configured > 0 ? "Restart your AI tool, then ask it:" : "Once your AI tool has the config, ask it:"} ${glow(ASK)}`);

@@ -26,7 +26,7 @@ const HANDSHAKE_TIMEOUT_MS = 1500;
 const CONNECT_GRACE_MS = 4000;
 const DEFAULT_CALL_TIMEOUT_MS = 120_000;
 
-type ExtensionState = { readonly connected: boolean; readonly version: string };
+type ExtensionState = { readonly connected: boolean; readonly version: string; readonly protocol: string };
 
 const readdirOrEmpty = (dir: string): string[] => {
   try {
@@ -47,7 +47,8 @@ const mtimeOrNull = (file: string): number | null => {
 
 /** Client side of the Unix socket (named pipe on Windows) to the native host, used by `yurei serve`, `doctor` and `call`. */
 export class HostClient {
-  private extension: ExtensionState = { connected: false, version: "" };
+  private extension: ExtensionState = { connected: false, version: "", protocol: "" };
+  private host = { version: "", latest: null as string | null };
   private socket: Socket | null = null;
   private connecting: Promise<boolean> | null = null;
   private readonly pending = new Map<string, Pending>();
@@ -64,6 +65,20 @@ export class HostClient {
 
   get extensionVersion(): string {
     return this.extension.version;
+  }
+
+  get extensionProtocol(): string {
+    return this.extension.protocol;
+  }
+
+  /** Version of the native host process Chrome is running; "" before 0.3, which did not say. */
+  get hostVersion(): string {
+    return this.host.version;
+  }
+
+  /** Newest version on npm according to the host's daily check, if it found a newer one. */
+  get latest(): string | null {
+    return this.host.latest;
   }
 
   /** Newest host socket first: after an extension reload the old host is gone and its file may linger. */
@@ -130,8 +145,9 @@ export class HostClient {
         for (const raw of parser.push(chunk)) {
           const message = parseHostToSession(raw);
           if (message?.type !== "welcome") continue;
-          this.extension = { connected: message.extensionConnected, version: message.extensionVersion };
-          this.options.log(`connected to native host at ${path} (extension ${message.extensionConnected ? `v${message.extensionVersion}` : "not ready"})`);
+          this.extension = { connected: message.extensionConnected, version: message.extensionVersion, protocol: message.extensionProtocol };
+          this.host = { version: message.version, latest: message.latest };
+          this.options.log(`connected to native host at ${path} (host v${message.version || "<0.3"}, extension ${message.extensionConnected ? `v${message.extensionVersion}` : "not ready"})`);
           finish(true);
         }
       });
@@ -161,7 +177,10 @@ export class HostClient {
           break;
         }
         case "extension":
-          this.extension = { connected: message.connected, version: message.version };
+          this.extension = { connected: message.connected, version: message.version, protocol: message.protocol };
+          break;
+        case "latest":
+          this.host = { ...this.host, latest: message.version };
           break;
         case "welcome":
           break;
@@ -190,6 +209,13 @@ export class HostClient {
   reload(): Promise<boolean> {
     return new Promise((resolve) => {
       if (!this.send({ type: "reload" }, () => resolve(true))) resolve(false);
+    });
+  }
+
+  /** Asks the host to exit so that Chrome starts the installed version; hosts before 0.3 ignore it. */
+  restartHost(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!this.send({ type: "restart" }, () => resolve(true))) resolve(false);
     });
   }
 

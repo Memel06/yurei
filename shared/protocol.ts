@@ -5,6 +5,8 @@ export const EXTENSION_ID = "fhdcknamidemigkgcfhlbdoibpfchffd";
 export const UNPACKED_EXTENSION_ID = "acgjkkmeekbcbpknmackieajkcmbllhm";
 export const CHROME_WEB_STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;
 export const NATIVE_HOST_NAME = "com.yurei.bridge";
+/** What every update hint tells the user to type; `npx yurei-chrome update` does the same without the launcher on PATH. */
+export const UPDATE_COMMAND = "yurei update";
 
 export const TOOL_NAMES = [
   "tabs_context",
@@ -42,30 +44,48 @@ export const errorResult = (text: string): ToolResult => ({ content: [{ type: "t
 
 export type Session = { readonly harness: string };
 
+/**
+ * Both sides announce their protocol and version and accept the other's whatever it says, so a mismatch after an
+ * update is reported to the user instead of being dropped on the floor. Tool calls are refused while it lasts.
+ */
+
 /** Native host → extension, delivered by Chrome as JSON objects over the native messaging port. */
 export type HostToExtension =
-  | { readonly type: "welcome"; readonly protocol: typeof PROTOCOL; readonly sessions: ReadonlyArray<Session> }
+  | { readonly type: "welcome"; readonly protocol: string; readonly version: string; readonly sessions: ReadonlyArray<Session> }
   | { readonly type: "sessions"; readonly sessions: ReadonlyArray<Session> }
   | { readonly type: "call"; readonly id: string; readonly tool: ToolName; readonly args: Args }
   | { readonly type: "ping" }
   /** Development aid: the unpacked extension reloads itself from disk. */
-  | { readonly type: "reload" };
+  | { readonly type: "reload" }
+  /** A newer command line tool is on npm. */
+  | { readonly type: "latest"; readonly version: string };
 
 export type ExtensionToHost =
-  | { readonly type: "hello"; readonly protocol: typeof PROTOCOL; readonly extensionId: string; readonly version: string }
+  | { readonly type: "hello"; readonly protocol: string; readonly extensionId: string; readonly version: string }
   | { readonly type: "result"; readonly id: string; readonly result: ToolResult }
   | { readonly type: "pong" };
 
 /** Harness session (`yurei serve`) → native host, over the local Unix socket. */
 export type SessionToHost =
-  | { readonly type: "hello"; readonly protocol: typeof PROTOCOL; readonly harness: string }
+  | { readonly type: "hello"; readonly protocol: string; readonly harness: string }
   | { readonly type: "call"; readonly id: string; readonly tool: ToolName; readonly args: Args }
-  | { readonly type: "reload" };
+  | { readonly type: "reload" }
+  /** After an update: the host exits so that Chrome starts the new one. */
+  | { readonly type: "restart" };
 
 export type HostToSession =
-  | { readonly type: "welcome"; readonly protocol: typeof PROTOCOL; readonly extensionConnected: boolean; readonly extensionVersion: string }
-  | { readonly type: "extension"; readonly connected: boolean; readonly version: string }
-  | { readonly type: "result"; readonly id: string; readonly result: ToolResult };
+  | {
+      readonly type: "welcome";
+      readonly protocol: string;
+      readonly version: string;
+      readonly extensionConnected: boolean;
+      readonly extensionVersion: string;
+      readonly extensionProtocol: string;
+      readonly latest: string | null;
+    }
+  | { readonly type: "extension"; readonly connected: boolean; readonly version: string; readonly protocol: string }
+  | { readonly type: "result"; readonly id: string; readonly result: ToolResult }
+  | { readonly type: "latest"; readonly version: string };
 
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -82,6 +102,11 @@ const isContentBlock = (v: unknown): v is ContentBlock => {
 const isToolResult = (v: unknown): v is ToolResult =>
   isRecord(v) && Array.isArray(v["content"]) && v["content"].every(isContentBlock) && typeof v["isError"] === "boolean";
 
+const str = (v: Record<string, unknown>, key: string): string => {
+  const s = v[key];
+  return typeof s === "string" ? s : "";
+};
+
 const isSession = (v: unknown): v is Session => isRecord(v) && typeof v["harness"] === "string";
 const isSessionList = (v: unknown): v is ReadonlyArray<Session> => Array.isArray(v) && v.every(isSession);
 
@@ -92,7 +117,9 @@ export function parseHostToExtension(v: unknown): HostToExtension | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "welcome":
-      return v["protocol"] === PROTOCOL && isSessionList(v["sessions"]) ? { type: "welcome", protocol: PROTOCOL, sessions: v["sessions"] } : null;
+      return typeof v["protocol"] === "string" && isSessionList(v["sessions"])
+        ? { type: "welcome", protocol: v["protocol"], version: str(v, "version"), sessions: v["sessions"] }
+        : null;
     case "sessions":
       return isSessionList(v["sessions"]) ? { type: "sessions", sessions: v["sessions"] } : null;
     case "call":
@@ -101,6 +128,8 @@ export function parseHostToExtension(v: unknown): HostToExtension | null {
       return { type: "ping" };
     case "reload":
       return { type: "reload" };
+    case "latest":
+      return typeof v["version"] === "string" ? { type: "latest", version: v["version"] } : null;
     default:
       return null;
   }
@@ -110,8 +139,8 @@ export function parseExtensionToHost(v: unknown): ExtensionToHost | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "hello":
-      return v["protocol"] === PROTOCOL && typeof v["extensionId"] === "string" && typeof v["version"] === "string"
-        ? { type: "hello", protocol: PROTOCOL, extensionId: v["extensionId"], version: v["version"] }
+      return typeof v["protocol"] === "string" && typeof v["extensionId"] === "string" && typeof v["version"] === "string"
+        ? { type: "hello", protocol: v["protocol"], extensionId: v["extensionId"], version: v["version"] }
         : null;
     case "result":
       return typeof v["id"] === "string" && isToolResult(v["result"]) ? { type: "result", id: v["id"], result: v["result"] } : null;
@@ -126,11 +155,13 @@ export function parseSessionToHost(v: unknown): SessionToHost | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "hello":
-      return v["protocol"] === PROTOCOL && typeof v["harness"] === "string" ? { type: "hello", protocol: PROTOCOL, harness: v["harness"] } : null;
+      return typeof v["protocol"] === "string" && typeof v["harness"] === "string" ? { type: "hello", protocol: v["protocol"], harness: v["harness"] } : null;
     case "call":
       return parseCall(v);
     case "reload":
       return { type: "reload" };
+    case "restart":
+      return { type: "restart" };
     default:
       return null;
   }
@@ -140,15 +171,23 @@ export function parseHostToSession(v: unknown): HostToSession | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "welcome":
-      return v["protocol"] === PROTOCOL && typeof v["extensionConnected"] === "boolean" && typeof v["extensionVersion"] === "string"
-        ? { type: "welcome", protocol: PROTOCOL, extensionConnected: v["extensionConnected"], extensionVersion: v["extensionVersion"] }
+      return typeof v["protocol"] === "string" && typeof v["extensionConnected"] === "boolean"
+        ? {
+            type: "welcome",
+            protocol: v["protocol"],
+            version: str(v, "version"),
+            extensionConnected: v["extensionConnected"],
+            extensionVersion: str(v, "extensionVersion"),
+            extensionProtocol: str(v, "extensionProtocol"),
+            latest: typeof v["latest"] === "string" ? v["latest"] : null,
+          }
         : null;
     case "extension":
-      return typeof v["connected"] === "boolean" && typeof v["version"] === "string"
-        ? { type: "extension", connected: v["connected"], version: v["version"] }
-        : null;
+      return typeof v["connected"] === "boolean" ? { type: "extension", connected: v["connected"], version: str(v, "version"), protocol: str(v, "protocol") } : null;
     case "result":
       return typeof v["id"] === "string" && isToolResult(v["result"]) ? { type: "result", id: v["id"], result: v["result"] } : null;
+    case "latest":
+      return typeof v["version"] === "string" ? { type: "latest", version: v["version"] } : null;
     default:
       return null;
   }

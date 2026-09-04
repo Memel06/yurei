@@ -2,13 +2,17 @@ import { appendFileSync, chmodSync, readdirSync, rmSync, writeFileSync } from "n
 import { createConnection, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import {
-  PROTOCOL, errorResult, parseExtensionToHost, parseSessionToHost,
+  PROTOCOL, UPDATE_COMMAND, errorResult, parseExtensionToHost, parseSessionToHost,
   type HostToExtension, type HostToSession, type Session, type ToolName, type ToolResult,
 } from "../../shared/protocol";
+import { isNewer } from "../../shared/semver";
 import { FrameParser, encodeFrame } from "./framing";
 import { ensureDir, hostLogPath, hostSocketFile, isHostSocketFile, isPrivateDir, isWindows, socketAddress, socketDir, yureiHome } from "./paths";
+import { latestVersion } from "./update";
+import { VERSION } from "./version";
 
 const PING_INTERVAL_MS = 20_000;
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Chrome disconnects a native host that sends one message above 1 MB, so oversize calls are refused before they reach it. */
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 
@@ -57,7 +61,10 @@ export function runNativeHost(): void {
   const sessions = new Map<number, SessionConn>();
   let nextSessionId = 1;
   let extensionVersion = "";
+  let extensionProtocol = "";
+  /** Said hello and speaks our protocol. */
   let extensionReady = false;
+  let latest: string | null = null;
 
   const toExtension = (message: HostToExtension): void => {
     process.stdout.write(encodeFrame(message));
@@ -69,6 +76,18 @@ export function runNativeHost(): void {
   const broadcastSessions = (): void => {
     if (extensionReady) toExtension({ type: "sessions", sessions: sessionList() });
   };
+  const welcomeSession = (): HostToSession => ({
+    type: "welcome", protocol: PROTOCOL, version: VERSION, extensionConnected: extensionReady, extensionVersion, extensionProtocol, latest,
+  });
+
+  const checkForUpdates = async (): Promise<void> => {
+    const found = await latestVersion();
+    if (found === null || !isNewer(found, VERSION) || found === latest) return;
+    latest = found;
+    log(`v${found} is on npm`);
+    toExtension({ type: "latest", version: found });
+    for (const conn of sessions.values()) toSession(conn, { type: "latest", version: found });
+  };
 
   const parser = new FrameParser();
   process.stdin.on("data", (chunk: Buffer) => {
@@ -77,11 +96,14 @@ export function runNativeHost(): void {
       if (!message) continue;
       switch (message.type) {
         case "hello":
-          extensionReady = true;
           extensionVersion = message.version;
-          log(`extension ${message.extensionId} v${message.version} connected`);
-          toExtension({ type: "welcome", protocol: PROTOCOL, sessions: sessionList() });
-          for (const conn of sessions.values()) toSession(conn, { type: "extension", connected: true, version: extensionVersion });
+          extensionProtocol = message.protocol;
+          extensionReady = message.protocol === PROTOCOL;
+          log(`extension ${message.extensionId} v${message.version} connected${extensionReady ? "" : ` speaking ${message.protocol}, this host speaks ${PROTOCOL}`}`);
+          // Sent even on a mismatch: the extension needs our version to tell the user which half to update.
+          toExtension({ type: "welcome", protocol: PROTOCOL, version: VERSION, sessions: sessionList() });
+          if (latest !== null) toExtension({ type: "latest", version: latest });
+          for (const conn of sessions.values()) toSession(conn, { type: "extension", connected: extensionReady, version: extensionVersion, protocol: extensionProtocol });
           break;
         case "result": {
           const separator = message.id.indexOf(":");
@@ -96,7 +118,11 @@ export function runNativeHost(): void {
   });
 
   const notConnected = (): ToolResult =>
-    errorResult("The Yurei extension has not finished connecting to its native host yet. Retry in a moment; if it persists, reload the extension in chrome://extensions.");
+    extensionVersion === ""
+      ? errorResult("The Yurei extension has not finished connecting to its native host yet. Retry in a moment; if it persists, reload the extension in chrome://extensions.")
+      : errorResult(
+          `The Yurei extension (v${extensionVersion}) and the command line tool (v${VERSION}) speak different versions. Tell the user to run \`${UPDATE_COMMAND}\`; if the extension is the older one, Chrome updates it within a few hours, or they can reload it in chrome://extensions.`,
+        );
 
   const server = createServer((socket) => {
     const id = nextSessionId++;
@@ -109,7 +135,7 @@ export function runNativeHost(): void {
         switch (message.type) {
           case "hello":
             conn.harness = message.harness;
-            toSession(conn, { type: "welcome", protocol: PROTOCOL, extensionConnected: extensionReady, extensionVersion });
+            toSession(conn, welcomeSession());
             broadcastSessions();
             break;
           case "call": {
@@ -125,6 +151,10 @@ export function runNativeHost(): void {
           }
           case "reload":
             if (extensionReady) toExtension({ type: "reload" });
+            break;
+          case "restart":
+            log("restart requested: exiting so Chrome starts the installed version");
+            shutdown();
             break;
         }
       }
@@ -145,9 +175,12 @@ export function runNativeHost(): void {
 
   // Regular traffic keeps the extension service worker alive; Chrome resets its idle timer on every port message.
   const pingTimer = setInterval(() => toExtension({ type: "ping" }), PING_INTERVAL_MS);
+  void checkForUpdates();
+  const updateTimer = setInterval(() => void checkForUpdates(), UPDATE_CHECK_INTERVAL_MS);
 
   const shutdown = (): void => {
     clearInterval(pingTimer);
+    clearInterval(updateTimer);
     for (const conn of sessions.values()) conn.socket.destroy();
     server.close();
     rmSync(socketPath, { force: true });
@@ -158,5 +191,5 @@ export function runNativeHost(): void {
   process.stdin.on("close", shutdown);
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
-  log(`started pid ${process.pid}`);
+  log(`started pid ${process.pid}, v${VERSION}`);
 }

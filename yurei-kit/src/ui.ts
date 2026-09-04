@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { VERSION } from "./mcp";
+import { VERSION } from "./version";
 
 export const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 

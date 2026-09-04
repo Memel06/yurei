@@ -1,12 +1,22 @@
 import { NativeBridge } from "./bridge";
 import { sessions } from "./cdp";
 import { getAccent, hideNow } from "./indicator";
-import { isRuntimeMessage, type StatusResponse } from "./messages";
+import { isRuntimeMessage, updateHint, type StatusResponse } from "./messages";
 import { markStopped, runTool } from "./tools";
 
 const RECONNECT_INTERVAL_MS = 5000;
 
-const bridge = new NativeBridge(runTool);
+const extensionVersion = chrome.runtime.getManifest().version;
+
+/** An arrow on the toolbar icon while an update is needed or available; the popup says which. */
+const showBadge = (): void => {
+  const status: StatusResponse = { version: extensionVersion, accent: "", ...bridge.status() };
+  const needed = updateHint(status) !== null;
+  void chrome.action.setBadgeText({ text: needed ? "↑" : "" });
+  if (needed) void chrome.action.setBadgeBackgroundColor({ color: "#c73a27" });
+};
+
+const bridge = new NativeBridge(runTool, showBadge);
 
 bridge.connect();
 setInterval(() => bridge.connect(), RECONNECT_INTERVAL_MS);
@@ -43,7 +53,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     }
     case "yurei:status": {
       void getAccent().then((accent) => {
-        const status: StatusResponse = { version: chrome.runtime.getManifest().version, accent, ...bridge.status() };
+        const status: StatusResponse = { version: extensionVersion, accent, ...bridge.status() };
         sendResponse(status);
       });
       return true;

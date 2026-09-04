@@ -70,6 +70,7 @@ The setup command is the same.
 
 ```
 yurei setup [--yes]           add Yurei to your AI tools, or repair the installation
+yurei update                  get the newest version of the command line tool
 yurei doctor                  check that Chrome and the extension are connected
 yurei config <tool>           print the MCP config for one tool: opencode, pi, cursor, windsurf, codex, generic
 yurei call <tool> '<json>'    run one browser tool by hand, e.g. yurei call navigate '{"url":"example.com"}'
@@ -77,6 +78,18 @@ yurei reload-extension        reload the unpacked extension after a rebuild
 ```
 
 Setup links `yurei` into `~/.local/bin`. If that is not on your PATH, `npx yurei-chrome <command>` works the same.
+
+## Update
+
+Chrome updates the extension by itself. The command line tool is a copy on your disk, so update it with:
+
+```sh
+yurei update
+```
+
+Yurei checks npm once a day. When a newer version is out, or the extension and the command line tool no longer
+match, the toolbar icon shows an arrow, the popup and `yurei doctor` say what to run, and the AI is told to pass it
+on. Set `YUREI_NO_UPDATE_CHECK=1` to turn the check off.
 
 ## What the AI gets
 

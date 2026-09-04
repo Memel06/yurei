@@ -28,7 +28,7 @@ const isExecutable = (file: string): boolean => {
   }
 };
 
-function findCommand(name: string): string | null {
+export function findCommand(name: string): string | null {
   const exts = isWindows ? (process.env["PATHEXT"] ?? ".EXE;.CMD;.BAT").split(";") : [""];
   for (const dir of (process.env["PATH"] ?? "").split(isWindows ? ";" : ":")) {
     if (!dir) continue;
