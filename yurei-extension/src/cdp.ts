@@ -1,4 +1,5 @@
 import { isRecord } from "../../shared/protocol";
+import type { Point } from "./pacing";
 
 type Params = Record<string, unknown>;
 
@@ -32,6 +33,8 @@ export class TabSession {
   readonly network: NetworkEntry[] = [];
   /** Ratio between the last screenshot's pixel width and the viewport's CSS width. */
   imageScale = 1;
+  /** Where the pointer was left, so the next move can start its path from there. */
+  cursor: Point | null = null;
   private readonly inflight = new Map<string, NetworkEntry>();
   private notes: string[] = [];
   private attached = false;
@@ -94,6 +97,7 @@ export class TabSession {
 
   onDetached(): void {
     this.attached = false;
+    this.cursor = null;
   }
 
   async detach(): Promise<void> {
