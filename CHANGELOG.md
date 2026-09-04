@@ -3,7 +3,9 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-04
+
+Yurei gets a window of its own, dismisses cookie banners, reads pages more narrowly and learns to update itself.
 
 ### Added
 
@@ -35,7 +37,6 @@ versions follow [Semantic Versioning](https://semver.org).
 
 - Adding Yurei to pi no longer freezes the wizard: installing pi-mcp-adapter now shows its progress live and
   gives up after two minutes with the command to run by hand.
-
 - The native host accepts the Chrome Web Store build. The store assigns its own extension id rather than
   honouring the manifest `key`, so a whitelist pinned to the unpacked id refused the connection and left
   every tool call failing. Both ids are whitelisted now.
@@ -67,5 +68,6 @@ First public release.
   find, forms, JavaScript, console and network logs, window resize. Iframes included, with frame-qualified refs.
 - Screenshots on demand for models that see images. Text views for everyone else.
 
+[0.3.0]: https://github.com/memel06/yurei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/memel06/yurei/releases/tag/v0.2.0
 [0.1.0]: https://github.com/memel06/yurei/releases/tag/v0.1.0
