@@ -30,7 +30,7 @@ they need them. Text-only models read the page as text. There is nothing to conf
 
 ## Install
 
-1. Add [Yurei](https://chromewebstore.google.com/detail/acgjkkmeekbcbpknmackieajkcmbllhm) to Chrome.
+1. Add [Yurei](https://chromewebstore.google.com/detail/fhdcknamidemigkgcfhlbdoibpfchffd) to Chrome.
 2. In a terminal, with [Node.js](https://nodejs.org) 18 or newer:
 
    ```sh

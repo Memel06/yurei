@@ -8,5 +8,5 @@ and adds Yurei to the tools you pick: opencode, pi, Cursor, Windsurf, Codex CLI 
 npx yurei-chrome setup
 ```
 
-Requires Node.js 18 or newer and the [Yurei Chrome extension](https://chromewebstore.google.com/detail/acgjkkmeekbcbpknmackieajkcmbllhm).
+Requires Node.js 18 or newer and the [Yurei Chrome extension](https://chromewebstore.google.com/detail/fhdcknamidemigkgcfhlbdoibpfchffd).
 Source, issues and documentation: [github.com/memel06/yurei](https://github.com/memel06/yurei).
