@@ -49,10 +49,12 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 
 1. Bump the version in `yurei-extension/manifest.json` and `yurei-kit/package.json` (`npm version X.Y.Z -w yurei-kit --no-git-tag-version`).
 2. Commit, tag `vX.Y.Z` and push the tag.
-3. `npm run pack -w yurei-extension` zips `dist/` for the Chrome Web Store. Keep the `key` in `manifest.json`:
-   it fixes the extension id that the native host trusts, in the store and unpacked alike.
+3. `npm run pack -w yurei-extension` zips `dist/` twice: `yurei-extension.zip` keeps the `key` in `manifest.json`,
+   which fixes the id an unpacked folder gets and the native host trusts; `yurei-extension-store.zip` drops it,
+   because the Chrome Web Store minted its own id for the listing and refuses an upload that carries a key.
 4. `npm publish -w yurei-kit` publishes the CLI (`prepublishOnly` builds it).
-5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`.
+5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`. Upload
+   `yurei-extension/yurei-extension-store.zip` to the Chrome Web Store developer console.
 6. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
 7. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
    in `shared/protocol.ts` only when a message changes in a way the other side cannot ignore; both sides then report

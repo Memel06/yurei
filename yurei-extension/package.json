@@ -5,6 +5,6 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "pack": "rm -f yurei-extension.zip && cd dist && zip -qr ../yurei-extension.zip ."
+    "pack": "node pack.mjs"
   }
 }
