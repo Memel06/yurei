@@ -8,6 +8,7 @@ export const fold = (s: string): string =>
   s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFC")
     .toLowerCase();
 
 /** The words of a query in any script. A single Latin letter or digit is noise; a lone character of another script is a word. */

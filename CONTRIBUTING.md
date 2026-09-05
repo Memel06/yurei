@@ -10,6 +10,7 @@ npm install
 npm run build        # extension → yurei-extension/dist, CLI → yurei-kit/dist/yurei.mjs
 npm run typecheck
 npm run lint         # Biome: formatting and lint rules; `npm run format` fixes what it can
+npm test             # unit tests with node:test, against the sources and the built CLI
 sh install.sh        # registers this checkout's build with Chrome and runs the setup wizard
 ```
 
@@ -28,6 +29,7 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 - `yurei-extension/` the Chrome extension (Manifest V3, TypeScript). `fonts/` and `icons/` are copied into `dist/`.
 - `yurei-kit/` the `yurei` command: native host, MCP server and setup wizard, published to npm as `yurei-chrome`.
 - `shared/protocol.ts` the messages the two exchange.
+- `test/` unit tests for the pure modules and the CLI. What needs a real Chrome is tested by hand, see below.
 - `assets/` the logo, also used by the [website](https://yurei.web.app).
 
 ## Style

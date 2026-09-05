@@ -8,9 +8,11 @@
   ],
   "scripts": {
     "build": "npm run build -ws",
-    "typecheck": "npm run typecheck -ws",
+    "typecheck": "npm run typecheck -ws && tsc -p test/tsconfig.json",
     "lint": "biome check .",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "pretest": "npm run build",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
