@@ -18,6 +18,9 @@ export type TreeOptions = {
   readonly dismissConsent: boolean;
 };
 
+/** What tree() did about a cookie banner: pressed its reject button, or found one it will not accept on the user's behalf. */
+export type Consent = { readonly outcome: "rejected" | "needs-user"; readonly label: string };
+
 /** What get_page_text reads: one ref, the elements matching a selector, or (both null) the main content. */
 export type TextScope = { readonly ref: string | null; readonly selector: string | null };
 
@@ -34,7 +37,12 @@ export type FrameSlot = {
 };
 
 /** How a frame sees itself; matched against the parent's FrameSlots. */
-export type FrameSelf = { readonly href: string; readonly name: string; readonly width: number; readonly height: number };
+export type FrameSelf = {
+  readonly href: string;
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+};
 
 export type FindHit = {
   readonly ref: string;
@@ -47,11 +55,26 @@ export type FindHit = {
 
 type Fail = { readonly ok: false; readonly error: string };
 export type TreeResult =
-  | { readonly ok: true; readonly text: string; readonly viewport: Viewport; readonly frames: ReadonlyArray<FrameSlot>; readonly consent: string | null }
+  | {
+      readonly ok: true;
+      readonly text: string;
+      readonly viewport: Viewport;
+      readonly frames: ReadonlyArray<FrameSlot>;
+      readonly consent: Consent | null;
+    }
   | Fail;
 export type FindResult = { readonly ok: true; readonly hits: ReadonlyArray<FindHit>; readonly total: number } | Fail;
-export type TextResult = { readonly ok: true; readonly text: string; readonly total: number; readonly scope: string } | Fail;
-export type FramesResult = { readonly ok: true; readonly viewport: Viewport; readonly frames: ReadonlyArray<FrameSlot>; readonly self: FrameSelf } | Fail;
+export type TextResult =
+  | { readonly ok: true; readonly text: string; readonly total: number; readonly scope: string }
+  | Fail;
+export type FramesResult =
+  | {
+      readonly ok: true;
+      readonly viewport: Viewport;
+      readonly frames: ReadonlyArray<FrameSlot>;
+      readonly self: FrameSelf;
+    }
+  | Fail;
 /** Centre of the element in this frame's viewport, after scrolling it into view. */
 export type RectResult = { readonly ok: true; readonly x: number; readonly y: number; readonly label: string } | Fail;
 export type SetValueResult = { readonly ok: true; readonly description: string } | Fail;

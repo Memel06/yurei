@@ -1,7 +1,7 @@
 import { NativeBridge } from "./bridge";
 import { sessions } from "./cdp";
 import { getAccent, hideNow } from "./indicator";
-import { isRuntimeMessage, updateHint, type StatusResponse } from "./messages";
+import { isRuntimeMessage, type StatusResponse, updateHint } from "./messages";
 import { markStopped, runTool } from "./tools";
 
 const RECONNECT_INTERVAL_MS = 5000;

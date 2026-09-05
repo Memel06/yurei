@@ -1,4 +1,4 @@
-import { updateHint, type RuntimeMessage, type StatusResponse } from "../messages";
+import { type RuntimeMessage, type StatusResponse, updateHint } from "../messages";
 
 type HelpPart = string | { readonly code: string };
 
@@ -8,7 +8,10 @@ const RUN_SETUP: HelpPart[] = ["run ", { code: SETUP_COMMAND }, " in a terminal"
 const send = (message: RuntimeMessage): Promise<unknown> => chrome.runtime.sendMessage(message);
 
 const isStatus = (v: unknown): v is StatusResponse =>
-  typeof v === "object" && v !== null && Array.isArray(Reflect.get(v, "sessions")) && typeof Reflect.get(v, "connected") === "boolean";
+  typeof v === "object" &&
+  v !== null &&
+  Array.isArray(Reflect.get(v, "sessions")) &&
+  typeof Reflect.get(v, "connected") === "boolean";
 
 const byId = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -28,8 +31,18 @@ let accentSynced = false;
 
 const explain = (error: string | null): ReadonlyArray<HelpPart> => {
   if (!error) return ["Waiting for the native host…"];
-  if (/not found/i.test(error)) return ["One step left: ", ...RUN_SETUP, " (needs Node.js 18 or newer). The ghost connects by itself a few seconds later."];
-  if (/forbidden/i.test(error)) return ["The native host is registered for a different extension id. Run ", { code: SETUP_COMMAND }, " again, then reload this extension."];
+  if (/not found/i.test(error))
+    return [
+      "One step left: ",
+      ...RUN_SETUP,
+      " (needs Node.js 18 or newer). The ghost connects by itself a few seconds later.",
+    ];
+  if (/forbidden/i.test(error))
+    return [
+      "The native host is registered for a different extension id. Run ",
+      { code: SETUP_COMMAND },
+      " again, then reload this extension.",
+    ];
   return [`Native host error: ${error}`];
 };
 
@@ -38,7 +51,9 @@ const helpFor = (res: StatusResponse): ReadonlyArray<HelpPart> => {
   const hint = updateHint(res);
   if (hint) return hint.command ? [hint.text, { code: hint.command }] : [hint.text];
   if (res.sessions.length === 0) return ["Start your AI tool. If it does not see Yurei, ", ...RUN_SETUP, " again."];
-  return ["Your AI can browse in this Chrome. The glowing tab is the one it is using. Press the seal to stop everything."];
+  return [
+    "Your AI can browse in this Chrome. The glowing tab is the one it is using. Press the seal to stop everything.",
+  ];
 };
 
 const renderHelp = (parts: ReadonlyArray<HelpPart>): void => {
@@ -55,7 +70,8 @@ const renderHelp = (parts: ReadonlyArray<HelpPart>): void => {
 async function refresh(): Promise<void> {
   const res = await send({ type: "yurei:status" }).catch(() => undefined);
   if (!isStatus(res)) return;
-  version.textContent = res.connected && res.hostVersion ? `v${res.version} · cli v${res.hostVersion}` : `v${res.version}`;
+  version.textContent =
+    res.connected && res.hostVersion ? `v${res.version} · cli v${res.hostVersion}` : `v${res.version}`;
   help.classList.toggle("warn", res.connected && updateHint(res) !== null);
   if (!accentSynced && accent instanceof HTMLInputElement) {
     accent.value = res.accent;
@@ -63,7 +79,11 @@ async function refresh(): Promise<void> {
   }
   dot.classList.toggle("on", res.connected);
   const n = res.sessions.length;
-  statusText.textContent = !res.connected ? "Not connected." : n === 0 ? "Connected. Nobody is haunting yet." : `Connected. ${n} session${n === 1 ? "" : "s"}.`;
+  statusText.textContent = !res.connected
+    ? "Not connected."
+    : n === 0
+      ? "Connected. Nobody is haunting yet."
+      : `Connected. ${n} session${n === 1 ? "" : "s"}.`;
   list.replaceChildren(
     ...res.sessions.map((s) => {
       const li = document.createElement("li");

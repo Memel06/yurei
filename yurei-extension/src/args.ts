@@ -1,4 +1,4 @@
-import { isRecord, type Args } from "../../shared/protocol";
+import { type Args, isRecord } from "../../shared/protocol";
 
 export class ArgError extends Error {}
 

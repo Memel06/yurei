@@ -45,8 +45,10 @@ const RATES: Readonly<Record<Turn, Rate>> = {
 };
 // Search engines hand out captchas for a burst of result pages that a shop or a blog would not even notice.
 const SEARCH_LOAD: Rate = { burst: 2, refillMs: 5000 };
-const SEARCH_ENGINE = /^(?:google\.[a-z.]+|bing\.com|duckduckgo\.com|yahoo\.com|yandex\.[a-z]+|baidu\.com|brave\.com|ecosia\.org|startpage\.com|qwant\.com)$/i;
-const rateFor = (kind: Turn, site: string): Rate => (kind === "load" && SEARCH_ENGINE.test(site) ? SEARCH_LOAD : RATES[kind]);
+const SEARCH_ENGINE =
+  /^(?:google\.[a-z.]+|bing\.com|duckduckgo\.com|yahoo\.com|yandex\.[a-z]+|baidu\.com|brave\.com|ecosia\.org|startpage\.com|qwant\.com)$/i;
+const rateFor = (kind: Turn, site: string): Rate =>
+  kind === "load" && SEARCH_ENGINE.test(site) ? SEARCH_LOAD : RATES[kind];
 
 const buckets = new Map<string, Bucket>();
 
@@ -65,7 +67,10 @@ export function siteOf(url: string): string {
   }
   if (!host || LOCAL.test(host)) return "";
   if (IPV4.test(host) || !host.includes(".")) return host;
-  return host.split(".").slice(MULTI_LABEL_SUFFIX.test(host) ? -3 : -2).join(".");
+  return host
+    .split(".")
+    .slice(MULTI_LABEL_SUFFIX.test(host) ? -3 : -2)
+    .join(".");
 }
 
 /**

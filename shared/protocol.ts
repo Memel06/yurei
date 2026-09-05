@@ -28,14 +28,30 @@ export const isToolName = (v: unknown): v is ToolName =>
   typeof v === "string" && (TOOL_NAMES as ReadonlyArray<string>).includes(v);
 
 export const COMPUTER_ACTIONS = [
-  "screenshot", "left_click", "right_click", "middle_click", "double_click", "triple_click", "hover", "type", "key",
-  "scroll", "scroll_to", "scroll_to_bottom", "left_click_drag", "wait",
+  "screenshot",
+  "left_click",
+  "right_click",
+  "middle_click",
+  "double_click",
+  "triple_click",
+  "hover",
+  "type",
+  "key",
+  "scroll",
+  "scroll_to",
+  "scroll_to_bottom",
+  "left_click_drag",
+  "wait",
 ] as const;
 
 export type Args = Readonly<Record<string, unknown>>;
 
 export type TextBlock = { readonly type: "text"; readonly text: string };
-export type ImageBlock = { readonly type: "image"; readonly mimeType: "image/jpeg" | "image/png"; readonly data: string };
+export type ImageBlock = {
+  readonly type: "image";
+  readonly mimeType: "image/jpeg" | "image/png";
+  readonly data: string;
+};
 export type ContentBlock = TextBlock | ImageBlock;
 export type ToolResult = { readonly content: ReadonlyArray<ContentBlock>; readonly isError: boolean };
 
@@ -51,7 +67,12 @@ export type Session = { readonly harness: string };
 
 /** Native host → extension, delivered by Chrome as JSON objects over the native messaging port. */
 export type HostToExtension =
-  | { readonly type: "welcome"; readonly protocol: string; readonly version: string; readonly sessions: ReadonlyArray<Session> }
+  | {
+      readonly type: "welcome";
+      readonly protocol: string;
+      readonly version: string;
+      readonly sessions: ReadonlyArray<Session>;
+    }
   | { readonly type: "sessions"; readonly sessions: ReadonlyArray<Session> }
   | { readonly type: "call"; readonly id: string; readonly tool: ToolName; readonly args: Args }
   | { readonly type: "ping" }
@@ -111,7 +132,9 @@ const isSession = (v: unknown): v is Session => isRecord(v) && typeof v["harness
 const isSessionList = (v: unknown): v is ReadonlyArray<Session> => Array.isArray(v) && v.every(isSession);
 
 const parseCall = (v: Record<string, unknown>): Extract<HostToExtension, { readonly type: "call" }> | null =>
-  typeof v["id"] === "string" && isToolName(v["tool"]) && isRecord(v["args"]) ? { type: "call", id: v["id"], tool: v["tool"], args: v["args"] } : null;
+  typeof v["id"] === "string" && isToolName(v["tool"]) && isRecord(v["args"])
+    ? { type: "call", id: v["id"], tool: v["tool"], args: v["args"] }
+    : null;
 
 export function parseHostToExtension(v: unknown): HostToExtension | null {
   if (!isRecord(v)) return null;
@@ -139,11 +162,15 @@ export function parseExtensionToHost(v: unknown): ExtensionToHost | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "hello":
-      return typeof v["protocol"] === "string" && typeof v["extensionId"] === "string" && typeof v["version"] === "string"
+      return typeof v["protocol"] === "string" &&
+        typeof v["extensionId"] === "string" &&
+        typeof v["version"] === "string"
         ? { type: "hello", protocol: v["protocol"], extensionId: v["extensionId"], version: v["version"] }
         : null;
     case "result":
-      return typeof v["id"] === "string" && isToolResult(v["result"]) ? { type: "result", id: v["id"], result: v["result"] } : null;
+      return typeof v["id"] === "string" && isToolResult(v["result"])
+        ? { type: "result", id: v["id"], result: v["result"] }
+        : null;
     case "pong":
       return { type: "pong" };
     default:
@@ -155,7 +182,9 @@ export function parseSessionToHost(v: unknown): SessionToHost | null {
   if (!isRecord(v)) return null;
   switch (v["type"]) {
     case "hello":
-      return typeof v["protocol"] === "string" && typeof v["harness"] === "string" ? { type: "hello", protocol: v["protocol"], harness: v["harness"] } : null;
+      return typeof v["protocol"] === "string" && typeof v["harness"] === "string"
+        ? { type: "hello", protocol: v["protocol"], harness: v["harness"] }
+        : null;
     case "call":
       return parseCall(v);
     case "reload":
@@ -183,9 +212,13 @@ export function parseHostToSession(v: unknown): HostToSession | null {
           }
         : null;
     case "extension":
-      return typeof v["connected"] === "boolean" ? { type: "extension", connected: v["connected"], version: str(v, "version"), protocol: str(v, "protocol") } : null;
+      return typeof v["connected"] === "boolean"
+        ? { type: "extension", connected: v["connected"], version: str(v, "version"), protocol: str(v, "protocol") }
+        : null;
     case "result":
-      return typeof v["id"] === "string" && isToolResult(v["result"]) ? { type: "result", id: v["id"], result: v["result"] } : null;
+      return typeof v["id"] === "string" && isToolResult(v["result"])
+        ? { type: "result", id: v["id"], result: v["result"] }
+        : null;
     case "latest":
       return typeof v["version"] === "string" ? { type: "latest", version: v["version"] } : null;
     default:

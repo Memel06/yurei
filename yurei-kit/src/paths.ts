@@ -9,19 +9,19 @@ export const isWindows = process.platform === "win32";
 export const yureiHome = (): string => join(homedir(), ".yurei");
 export const hostLogPath = (): string => join(yureiHome(), "native-host.log");
 /** On Windows the registry points at this single manifest; elsewhere a copy goes into each browser's folder. */
-export const hostManifestPath = (): string => join(yureiHome(), `${NATIVE_HOST_NAME}.json`);
+const hostManifestPath = (): string => join(yureiHome(), `${NATIVE_HOST_NAME}.json`);
 
 /** The file currently running: an npx cache, a global npm install, or a checkout's build. */
 export const scriptPath = (): string => fileURLToPath(import.meta.url);
 
 /** Set when running from a checkout, whose build is then used in place so a rebuild needs no reinstall. */
-export function repoRoot(): string | null {
+function repoRoot(): string | null {
   const root = join(dirname(scriptPath()), "..", "..");
   return existsSync(join(root, "yurei-extension", "manifest.json")) ? root : null;
 }
 
 /** Where Chrome and the harnesses find the CLI: a checkout's build, or the copy `yurei setup` keeps in ~/.yurei. */
-export const cliPath = (): string => repoRoot() !== null ? scriptPath() : join(yureiHome(), "yurei.mjs");
+export const cliPath = (): string => (repoRoot() !== null ? scriptPath() : join(yureiHome(), "yurei.mjs"));
 
 /** Chrome can only start an executable, and it appends its own arguments, so a small script runs the CLI. */
 export const launcherPath = (): string => join(yureiHome(), isWindows ? "yurei.cmd" : "yurei");
@@ -76,7 +76,9 @@ type BrowserEntry = readonly [name: string, dir: string];
 const posixTargets = (): ReadonlyArray<HostManifestTarget> => {
   const home = homedir();
   const mac = process.platform === "darwin";
-  const base = mac ? join(home, "Library", "Application Support") : (process.env["XDG_CONFIG_HOME"] ?? join(home, ".config"));
+  const base = mac
+    ? join(home, "Library", "Application Support")
+    : (process.env["XDG_CONFIG_HOME"] ?? join(home, ".config"));
   const browsers: ReadonlyArray<BrowserEntry> = mac
     ? [
         ["Google Chrome", "Google/Chrome"],

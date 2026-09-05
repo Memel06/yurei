@@ -1,7 +1,7 @@
-import { build } from "esbuild";
 import { chmod, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
@@ -12,7 +12,9 @@ const result = await build({
   format: "esm",
   target: "node18",
   outfile: "dist/yurei.mjs",
-  banner: { js: '#!/usr/bin/env node\nimport { createRequire } from "node:module";\nconst require = createRequire(import.meta.url);' },
+  banner: {
+    js: '#!/usr/bin/env node\nimport { createRequire } from "node:module";\nconst require = createRequire(import.meta.url);',
+  },
   legalComments: "none",
   logLevel: "info",
   metafile: true,
@@ -35,8 +37,12 @@ async function thirdPartyNotices(inputs) {
   for (const root of [...roots].sort()) {
     const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     const licenseFile = (await readdir(root)).find((f) => /^(licen[cs]e|copying)(\.|$)/i.test(f));
-    const text = licenseFile ? (await readFile(join(root, licenseFile), "utf8")).trim() : `License: ${pkg.license ?? "unknown"}`;
-    sections.push(`${pkg.name} ${pkg.version}\n${"=".repeat(pkg.name.length + String(pkg.version).length + 1)}\n\n${text}`);
+    const text = licenseFile
+      ? (await readFile(join(root, licenseFile), "utf8")).trim()
+      : `License: ${pkg.license ?? "unknown"}`;
+    sections.push(
+      `${pkg.name} ${pkg.version}\n${"=".repeat(pkg.name.length + String(pkg.version).length + 1)}\n\n${text}`,
+    );
   }
   return `Third-party software bundled in yurei-chrome\n\n${sections.join("\n\n\n")}\n`;
 }

@@ -92,7 +92,10 @@ function editCommands(def: KeyDef, modifiers: number): ReadonlyArray<string> {
 export function parseKeyPress(input: string): KeyPress {
   const trimmed = input.trim();
   if (trimmed === "+") return { def: charKey("+"), modifiers: 0, commands: [] };
-  const parts = trimmed.split("+").map((p) => p.trim()).filter((p) => p.length > 0);
+  const parts = trimmed
+    .split("+")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
   let modifiers = 0;
   const rest: string[] = [];
   for (const part of parts) {
@@ -103,6 +106,9 @@ export function parseKeyPress(input: string): KeyPress {
   if (rest.length !== 1) throw new Error(`Cannot parse key "${input}". Use e.g. "Enter", "cmd+a", "ctrl+shift+t".`);
   const raw = rest[0] ?? "";
   const def = NAMED[raw.toLowerCase()] ?? charKey(raw);
-  const shifted = modifiers & MOD.shift && /^[a-z]$/.test(def.key) ? { ...def, key: def.key.toUpperCase(), text: def.key.toUpperCase() } : def;
+  const shifted =
+    modifiers & MOD.shift && /^[a-z]$/.test(def.key)
+      ? { ...def, key: def.key.toUpperCase(), text: def.key.toUpperCase() }
+      : def;
   return { def: shifted, modifiers, commands: editCommands(def, modifiers) };
 }

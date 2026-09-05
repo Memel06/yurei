@@ -1,11 +1,11 @@
+import { spawnSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { spawnSync } from "node:child_process";
-import { CHROME_WEB_STORE_URL, isToolName, UPDATE_COMMAND, type ToolResult } from "../../shared/protocol";
+import { CHROME_WEB_STORE_URL, isToolName, type ToolResult, UPDATE_COMMAND } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
-import { harnessById, HARNESS_IDS, installSkill, isHarnessId } from "./harness";
+import { HARNESS_IDS, harnessById, installSkill, isHarnessId } from "./harness";
 import { HostClient, NOT_CONNECTED_HELP } from "./host-client";
-import { installLauncher, installedManifests } from "./install";
+import { installedManifests, installLauncher } from "./install";
 import { createMcpServer } from "./mcp";
 import { runNativeHost } from "./native-host";
 import { extensionDir, isWindows, launcherPath } from "./paths";
@@ -45,7 +45,9 @@ function parseCli(argv: ReadonlyArray<string>): Cli {
 async function serve(): Promise<void> {
   let harnessName = "unknown AI tool";
   const client = new HostClient({ harness: () => harnessName, log });
-  client.connect().catch((e: unknown) => log(`native host lookup failed: ${e instanceof Error ? e.message : String(e)}`));
+  client
+    .connect()
+    .catch((e: unknown) => log(`native host lookup failed: ${e instanceof Error ? e.message : String(e)}`));
   log(`v${VERSION}`);
   const server = createMcpServer(client);
   server.server.oninitialized = () => {
@@ -71,7 +73,11 @@ const printResult = (result: ToolResult): void => {
 };
 
 /** Quiet mode keeps stdout clean for `call`, whose output is meant to be piped. */
-async function withExtension(harness: string, run: (client: HostClient) => Promise<number>, quiet = false): Promise<never> {
+async function withExtension(
+  harness: string,
+  run: (client: HostClient) => Promise<number>,
+  quiet = false,
+): Promise<never> {
   const client = new HostClient({ harness: () => harness, log: () => undefined });
   const s = quiet ? null : spinner();
   s?.start("Looking for the Yurei extension");
@@ -93,7 +99,9 @@ async function withExtension(harness: string, run: (client: HostClient) => Promi
 /** Runs the installed launcher end to end (node found, CLI copy intact) and returns the version it reports. */
 function launcherVersion(): string | null {
   const launcher = launcherPath();
-  const run = isWindows ? spawnSync("cmd.exe", ["/c", launcher, "version"], { encoding: "utf8" }) : spawnSync(launcher, ["version"], { encoding: "utf8" });
+  const run = isWindows
+    ? spawnSync("cmd.exe", ["/c", launcher, "version"], { encoding: "utf8" })
+    : spawnSync(launcher, ["version"], { encoding: "utf8" });
   const out = (run.stdout ?? "").trim();
   return run.status === 0 && /^\d+\.\d+\.\d+/.test(out) ? out : null;
 }
@@ -109,12 +117,15 @@ async function doctor(): Promise<never> {
   const dir = extensionDir();
   p.log.info(dir ? `Extension to load unpacked: ${dim(dir)}` : `Extension: ${glow(CHROME_WEB_STORE_URL)}`);
   const latest = await latestVersion();
-  if (latest !== null && isNewer(latest, VERSION)) p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Update with ${cmd(UPDATE_COMMAND)}`);
+  if (latest !== null && isNewer(latest, VERSION))
+    p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Update with ${cmd(UPDATE_COMMAND)}`);
   else p.log.success(`Command line tool v${VERSION}${latest === null ? "" : ", the newest version"}`);
   return withExtension("yurei doctor", async (client) => {
     if (client.hostVersion !== VERSION) {
       const running = client.hostVersion ? `v${client.hostVersion}` : "older than 0.3";
-      p.log.warn(`The native host Chrome is running is ${running}, not v${VERSION}. Run ${cmd(UPDATE_COMMAND)}, or reload the extension in chrome://extensions.`);
+      p.log.warn(
+        `The native host Chrome is running is ${running}, not v${VERSION}. Run ${cmd(UPDATE_COMMAND)}, or reload the extension in chrome://extensions.`,
+      );
     }
     const result = await client.call("tabs_context", {});
     const [first = "", ...tabs] = result.content.flatMap((b) => (b.type === "text" ? b.text.split("\n") : []));
@@ -133,13 +144,18 @@ const call = (positional: ReadonlyArray<string>): Promise<never> => {
   const [tool, rawArgs = "{}"] = positional;
   if (!tool || !isToolName(tool)) return Promise.resolve(fail(`usage: yurei call <tool> '<json args>'`));
   const parsed: unknown = JSON.parse(rawArgs);
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return Promise.resolve(fail("args must be a JSON object"));
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+    return Promise.resolve(fail("args must be a JSON object"));
   const args: Record<string, unknown> = { ...parsed };
-  return withExtension("yurei call", async (client) => {
-    const result = await client.call(tool, args);
-    printResult(result);
-    return result.isError ? 1 : 0;
-  }, true);
+  return withExtension(
+    "yurei call",
+    async (client) => {
+      const result = await client.call(tool, args);
+      printResult(result);
+      return result.isError ? 1 : 0;
+    },
+    true,
+  );
 };
 
 const reloadExtension = (): Promise<never> =>
@@ -183,9 +199,9 @@ async function main(): Promise<void> {
   }
   switch (cli.command) {
     case "setup":
-      process.exit(await runSetup({ assumeYes: cli.flags.has("yes") }));
+      return process.exit(await runSetup({ assumeYes: cli.flags.has("yes") }));
     case "update":
-      process.exit(await runUpdate());
+      return process.exit(await runUpdate());
     case "serve":
       return serve();
     case "native-host":
@@ -199,7 +215,9 @@ async function main(): Promise<void> {
       if (!isHarnessId(harness)) return fail(`config needs one of: ${HARNESS_IDS.join(", ")}`);
       installLauncher();
       console.log(harnessById(harness).snippet());
-      console.log(`\n${dim("Skill installed at")} ${installSkill()} ${dim("(tells the AI when to reach for the browser)")}`);
+      console.log(
+        `\n${dim("Skill installed at")} ${installSkill()} ${dim("(tells the AI when to reach for the browser)")}`,
+      );
       return;
     }
     case "reload-extension":

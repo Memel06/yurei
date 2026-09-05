@@ -1,11 +1,11 @@
-import * as p from "@clack/prompts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { get } from "node:https";
 import { dirname, join } from "node:path";
-import { isRecord, UPDATE_COMMAND } from "../../shared/protocol";
+import * as p from "@clack/prompts";
+import { isRecord } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
-import { findCommand, installSkill } from "./harness";
+import { findCommand, forShell, installSkill } from "./harness";
 import { HostClient } from "./host-client";
 import { installNativeHost } from "./install";
 import { ensureDir, isWindows, yureiHome } from "./paths";
@@ -25,7 +25,9 @@ function readCache(): Cache | null {
   try {
     if (!existsSync(cacheFile())) return null;
     const v: unknown = JSON.parse(readFileSync(cacheFile(), "utf8"));
-    return isRecord(v) && typeof v["checkedAt"] === "number" && typeof v["latest"] === "string" ? { checkedAt: v["checkedAt"], latest: v["latest"] } : null;
+    return isRecord(v) && typeof v["checkedAt"] === "number" && typeof v["latest"] === "string"
+      ? { checkedAt: v["checkedAt"], latest: v["latest"] }
+      : null;
   } catch {
     return null;
   }
@@ -33,25 +35,29 @@ function readCache(): Cache | null {
 
 function fetchLatest(): Promise<string | null> {
   return new Promise((resolve) => {
-    const request = get(REGISTRY_URL, { headers: { accept: "application/json" }, timeout: FETCH_TIMEOUT_MS }, (response) => {
-      let body = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk: string) => (body += chunk));
-      response.on("end", () => {
-        try {
-          const v: unknown = JSON.parse(body);
-          resolve(isRecord(v) && typeof v["version"] === "string" ? v["version"] : null);
-        } catch {
-          resolve(null);
-        }
-      });
-    });
+    const request = get(
+      REGISTRY_URL,
+      { headers: { accept: "application/json" }, timeout: FETCH_TIMEOUT_MS },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => (body += chunk));
+        response.on("end", () => {
+          try {
+            const v: unknown = JSON.parse(body);
+            resolve(isRecord(v) && typeof v["version"] === "string" ? v["version"] : null);
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
     request.on("timeout", () => request.destroy());
     request.on("error", () => resolve(null));
   });
 }
 
-export const updateChecksDisabled = (): boolean => Boolean(process.env["YUREI_NO_UPDATE_CHECK"]);
+const updateChecksDisabled = (): boolean => Boolean(process.env["YUREI_NO_UPDATE_CHECK"]);
 
 /** The newest version on npm, asked at most once a day; null when unknown. Forcing skips the cache and the opt-out. */
 export async function latestVersion(force = false): Promise<string | null> {
@@ -87,7 +93,10 @@ export async function refreshHost(client: HostClient): Promise<boolean> {
       }
     }
   }
-  s.stop(`The native host still runs ${previous}. Reload Yurei in chrome://extensions, or restart Chrome, to finish the update.`, 1);
+  s.stop(
+    `The native host still runs ${previous}. Reload Yurei in chrome://extensions, or restart Chrome, to finish the update.`,
+    1,
+  );
   return false;
 }
 
@@ -111,11 +120,14 @@ export async function runUpdate(): Promise<number> {
     s.stop(`v${latest} is out (this is v${VERSION})`);
     const npx = npxPath();
     if (npx === null) {
-      p.log.error(`npx was not found. Run ${cmd(`npx yurei-chrome@${latest} update`)} in a terminal where npm is available.`);
+      p.log.error(
+        `npx was not found. Run ${cmd(`npx yurei-chrome@${latest} update`)} in a terminal where npm is available.`,
+      );
       return 1;
     }
     p.log.step(`Fetching it with ${cmd(`npx yurei-chrome@${latest} update`)}`);
-    const run = spawnSync(npx, ["--yes", `yurei-chrome@${latest}`, "update"], { stdio: "inherit", shell: isWindows });
+    const { command, args } = forShell({ command: npx, args: ["--yes", `yurei-chrome@${latest}`, "update"] });
+    const run = spawnSync(command, [...args], { stdio: "inherit", shell: isWindows });
     return run.status ?? 1;
   }
   s.stop(`v${VERSION} is the newest version`);
@@ -128,7 +140,12 @@ export async function runUpdate(): Promise<number> {
   const connected = await client.waitForExtension(3000);
   const fresh = connected ? await refreshHost(client) : false;
   client.close();
-  if (!connected) p.log.info("The extension is not connected right now; it picks up the new version when it next connects.");
-  p.outro(fresh || !connected ? `${bold("boo.")} Yurei v${VERSION} is in.` : shu("Yurei is installed, but the old native host is still running."));
+  if (!connected)
+    p.log.info("The extension is not connected right now; it picks up the new version when it next connects.");
+  p.outro(
+    fresh || !connected
+      ? `${bold("boo.")} Yurei v${VERSION} is in.`
+      : shu("Yurei is installed, but the old native host is still running."),
+  );
   return 0;
 }

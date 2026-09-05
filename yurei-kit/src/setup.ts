@@ -1,14 +1,14 @@
-import * as p from "@clack/prompts";
 import { dirname } from "node:path";
+import * as p from "@clack/prompts";
 import { CHROME_WEB_STORE_URL } from "../../shared/protocol";
-import { detectHarnesses, HARNESSES, installSkill, type Harness } from "./harness";
+import { isNewer } from "../../shared/semver";
+import { detectHarnesses, HARNESSES, type Harness, installSkill } from "./harness";
 import { HostClient } from "./host-client";
-import { installNativeHost, type InstallReport } from "./install";
+import { type InstallReport, installNativeHost } from "./install";
 import { extensionDir, isWindows } from "./paths";
 import { banner, bold, cmd, dim, errorMessage, glow, numeral, shu, spinner } from "./ui";
 import { latestVersion, refreshHost } from "./update";
 import { VERSION } from "./version";
-import { isNewer } from "../../shared/semver";
 
 const EXTENSION_WAIT_MS = 90_000;
 const ASK = '"open example.com and tell me the page title"';
@@ -35,7 +35,12 @@ function extensionInstructions(): void {
     return;
   }
   p.note(
-    ["1. open   chrome://extensions", "2. enable Developer mode (top right)", "3. click  Load unpacked and choose this folder:", `   ${glow(dir)}`].join("\n"),
+    [
+      "1. open   chrome://extensions",
+      "2. enable Developer mode (top right)",
+      "3. click  Load unpacked and choose this folder:",
+      `   ${glow(dir)}`,
+    ].join("\n"),
     "Load the extension",
   );
 }
@@ -93,7 +98,10 @@ async function verifyStep(client: HostClient): Promise<boolean> {
 }
 
 /** Null when the user backed out of the menu. */
-async function pickHarnesses(found: ReadonlyArray<Harness>, assumeYes: boolean): Promise<ReadonlyArray<Harness> | null> {
+async function pickHarnesses(
+  found: ReadonlyArray<Harness>,
+  assumeYes: boolean,
+): Promise<ReadonlyArray<Harness> | null> {
   if (assumeYes || !interactive()) return found;
   const picked = await p.multiselect({
     message: "Add Yurei to which AI tools?",
@@ -137,8 +145,12 @@ async function harnessStep(assumeYes: boolean): Promise<number | null> {
   }
   let configured = 0;
   for (const harness of chosen) if (await configureHarness(harness)) configured++;
-  if (configured > 0) p.log.success(`Skill ${dim(installSkill())} ${dim("tells the AI when to reach for the browser")}`);
-  if (missing.length > 0) p.log.info(`Not found: ${missing.map((h) => h.name).join(", ")}. ${dim("yurei config <tool> prints their config.")}`);
+  if (configured > 0)
+    p.log.success(`Skill ${dim(installSkill())} ${dim("tells the AI when to reach for the browser")}`);
+  if (missing.length > 0)
+    p.log.info(
+      `Not found: ${missing.map((h) => h.name).join(", ")}. ${dim("yurei config <tool> prints their config.")}`,
+    );
   return configured;
 }
 
@@ -150,7 +162,9 @@ function commandHint(report: InstallReport): void {
     p.log.info(`Check the installation any time with ${cmd("yurei doctor")}`);
     return;
   }
-  p.log.info(`yurei is not on your PATH. Add ${bold(dir)} to it, or run every command as ${cmd("npx yurei-chrome <command>")}`);
+  p.log.info(
+    `yurei is not on your PATH. Add ${bold(dir)} to it, or run every command as ${cmd("npx yurei-chrome <command>")}`,
+  );
   p.log.info(`Check the installation any time with ${cmd(`${report.command ?? `"${report.launcher}"`} doctor`)}`);
 }
 
@@ -175,10 +189,13 @@ export async function runSetup(options: SetupOptions): Promise<number> {
     return 1;
   }
   const latest = await latestVersion();
-  if (latest !== null && isNewer(latest, VERSION)) p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Get it with ${cmd("npx yurei-chrome@latest setup")}`);
+  if (latest !== null && isNewer(latest, VERSION))
+    p.log.warn(`Yurei v${latest} is out and this is v${VERSION}. Get it with ${cmd("npx yurei-chrome@latest setup")}`);
   commandHint(report);
   if (works) {
-    p.outro(`${bold("boo.")} ${configured > 0 ? "Restart your AI tool, then ask it:" : "Once your AI tool has the config, ask it:"} ${glow(ASK)}`);
+    p.outro(
+      `${bold("boo.")} ${configured > 0 ? "Restart your AI tool, then ask it:" : "Once your AI tool has the config, ask it:"} ${glow(ASK)}`,
+    );
     return 0;
   }
   extensionInstructions();

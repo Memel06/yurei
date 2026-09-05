@@ -2,12 +2,30 @@ import { appendFileSync, chmodSync, readdirSync, rmSync, writeFileSync } from "n
 import { createConnection, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import {
-  PROTOCOL, UPDATE_COMMAND, errorResult, parseExtensionToHost, parseSessionToHost,
-  type HostToExtension, type HostToSession, type Session, type ToolName, type ToolResult,
+  errorResult,
+  type HostToExtension,
+  type HostToSession,
+  PROTOCOL,
+  parseExtensionToHost,
+  parseSessionToHost,
+  type Session,
+  type ToolName,
+  type ToolResult,
+  UPDATE_COMMAND,
 } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
-import { FrameParser, encodeFrame } from "./framing";
-import { ensureDir, hostLogPath, hostSocketFile, isHostSocketFile, isPrivateDir, isWindows, socketAddress, socketDir, yureiHome } from "./paths";
+import { encodeFrame, FrameParser } from "./framing";
+import {
+  ensureDir,
+  hostLogPath,
+  hostSocketFile,
+  isHostSocketFile,
+  isPrivateDir,
+  isWindows,
+  socketAddress,
+  socketDir,
+  yureiHome,
+} from "./paths";
 import { latestVersion } from "./update";
 import { VERSION } from "./version";
 
@@ -77,7 +95,13 @@ export function runNativeHost(): void {
     if (extensionReady) toExtension({ type: "sessions", sessions: sessionList() });
   };
   const welcomeSession = (): HostToSession => ({
-    type: "welcome", protocol: PROTOCOL, version: VERSION, extensionConnected: extensionReady, extensionVersion, extensionProtocol, latest,
+    type: "welcome",
+    protocol: PROTOCOL,
+    version: VERSION,
+    extensionConnected: extensionReady,
+    extensionVersion,
+    extensionProtocol,
+    latest,
   });
 
   const checkForUpdates = async (): Promise<void> => {
@@ -99,11 +123,19 @@ export function runNativeHost(): void {
           extensionVersion = message.version;
           extensionProtocol = message.protocol;
           extensionReady = message.protocol === PROTOCOL;
-          log(`extension ${message.extensionId} v${message.version} connected${extensionReady ? "" : ` speaking ${message.protocol}, this host speaks ${PROTOCOL}`}`);
+          log(
+            `extension ${message.extensionId} v${message.version} connected${extensionReady ? "" : ` speaking ${message.protocol}, this host speaks ${PROTOCOL}`}`,
+          );
           // Sent even on a mismatch: the extension needs our version to tell the user which half to update.
           toExtension({ type: "welcome", protocol: PROTOCOL, version: VERSION, sessions: sessionList() });
           if (latest !== null) toExtension({ type: "latest", version: latest });
-          for (const conn of sessions.values()) toSession(conn, { type: "extension", connected: extensionReady, version: extensionVersion, protocol: extensionProtocol });
+          for (const conn of sessions.values())
+            toSession(conn, {
+              type: "extension",
+              connected: extensionReady,
+              version: extensionVersion,
+              protocol: extensionProtocol,
+            });
           break;
         case "result": {
           const separator = message.id.indexOf(":");
@@ -119,7 +151,9 @@ export function runNativeHost(): void {
 
   const notConnected = (): ToolResult =>
     extensionVersion === ""
-      ? errorResult("The Yurei extension has not finished connecting to its native host yet. Retry in a moment; if it persists, reload the extension in chrome://extensions.")
+      ? errorResult(
+          "The Yurei extension has not finished connecting to its native host yet. Retry in a moment; if it persists, reload the extension in chrome://extensions.",
+        )
       : errorResult(
           `The Yurei extension (v${extensionVersion}) and the command line tool (v${VERSION}) speak different versions. Tell the user to run \`${UPDATE_COMMAND}\`; if the extension is the older one, Chrome updates it within a few hours, or they can reload it in chrome://extensions.`,
         );
@@ -143,9 +177,15 @@ export function runNativeHost(): void {
               toSession(conn, { type: "result", id: message.id, result: notConnected() });
               break;
             }
-            const call: HostToExtension = { type: "call", id: `${id}:${message.id}`, tool: message.tool, args: message.args };
+            const call: HostToExtension = {
+              type: "call",
+              id: `${id}:${message.id}`,
+              tool: message.tool,
+              args: message.args,
+            };
             const frame = encodeFrame(call);
-            if (frame.length - 4 > MAX_MESSAGE_BYTES) toSession(conn, { type: "result", id: message.id, result: tooLarge(message.tool, frame.length - 4) });
+            if (frame.length - 4 > MAX_MESSAGE_BYTES)
+              toSession(conn, { type: "result", id: message.id, result: tooLarge(message.tool, frame.length - 4) });
             else process.stdout.write(frame);
             break;
           }

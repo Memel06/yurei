@@ -12,7 +12,7 @@ async function pack(name, edit) {
   await cp("dist", stage, { recursive: true });
   const manifestPath = join(stage, "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  await writeFile(manifestPath, JSON.stringify(edit(manifest), null, 2) + "\n");
+  await writeFile(manifestPath, `${JSON.stringify(edit(manifest), null, 2)}\n`);
   await rm(name, { force: true });
   execFileSync("zip", ["-qr", join(here, name), "."], { cwd: stage });
   await rm(stage, { recursive: true, force: true });
