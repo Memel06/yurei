@@ -13,6 +13,8 @@ versions follow [Semantic Versioning](https://semver.org).
 
 ### Fixed
 
+- `find` understands queries in any script and ignores Latin accents: "citta" finds "Città" and "検索" finds the search
+  button. Before, letters outside a-z were treated as separators and dropped from the query.
 - `yurei update` and the automatic `pi install` on Windows: commands that have to run through `cmd.exe` are quoted,
   so a Node.js under `C:\Program Files`, or a user folder with a space in it, no longer breaks them apart.
 

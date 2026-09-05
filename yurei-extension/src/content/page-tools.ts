@@ -14,7 +14,7 @@ import {
   type TreeOptions,
   type TreeResult,
 } from "../page-api";
-import { clean, clip, quote, truncateText } from "../text-utils";
+import { clean, clip, fold, quote, tokenize, truncateText } from "../text-utils";
 
 (() => {
   if (window.__yurei) return;
@@ -668,14 +668,14 @@ import { clean, clip, quote, truncateText } from "../text-utils";
   };
 
   function find(query: string, clipRect: Rect | null): FindResult {
-    const q = clean(query).toLowerCase();
+    const q = fold(clean(query));
     if (!q) return { ok: false, error: "query is empty" };
     const wantedRoles = new Set<string>();
     for (const [pattern, roles] of ROLE_HINTS) if (pattern.test(q)) for (const r of roles) wantedRoles.add(r);
     // "search" alone means the search field; next to an explicit kind ("search button") it is just a word.
     if (wantedRoles.size === 0 && /\bsearch\b/.test(q))
       for (const r of ["textbox", "searchbox", "combobox"]) wantedRoles.add(r);
-    const tokens = q.split(/[^a-z0-9@._'-]+/).filter((t) => t.length > 1 && !STOP_WORDS.has(t));
+    const tokens = tokenize(q).filter((t) => !STOP_WORDS.has(t));
     const phrase = tokens.join(" ");
     const candidates: Candidate[] = [];
     let scanned = 0;
@@ -689,28 +689,24 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       const interactive = isInteractive(el, role, style);
       const name = nameOf(el, role);
       if (!interactive && !name && role === "generic") continue;
-      const labelText = [
-        name,
-        el.getAttribute("aria-label"),
-        el.getAttribute("placeholder"),
-        el.getAttribute("title"),
-        el.getAttribute("alt"),
-        fieldValue(el),
-      ]
-        .map(clean)
-        .join(" ")
-        .toLowerCase();
+      const labelText = fold(
+        [
+          name,
+          el.getAttribute("aria-label"),
+          el.getAttribute("placeholder"),
+          el.getAttribute("title"),
+          el.getAttribute("alt"),
+          fieldValue(el),
+        ]
+          .map(clean)
+          .join(" "),
+      );
       // Attribute matches (ids, hrefs, test ids) are weaker evidence than what the user can read on screen.
-      const attributeText = [
-        el.getAttribute("name"),
-        el.id,
-        el.getAttribute("href"),
-        el.getAttribute("data-testid"),
-        role,
-      ]
-        .map(clean)
-        .join(" ")
-        .toLowerCase();
+      const attributeText = fold(
+        [el.getAttribute("name"), el.id, el.getAttribute("href"), el.getAttribute("data-testid"), role]
+          .map(clean)
+          .join(" "),
+      );
       let score = 0;
       if (phrase && labelText.includes(phrase)) score += 10;
       else if (phrase && attributeText.includes(phrase)) score += 3;
@@ -718,7 +714,7 @@ import { clean, clip, quote, truncateText } from "../text-utils";
         if (labelText.includes(token)) score += 3;
         else if (attributeText.includes(token)) score += 1;
       }
-      if (name.toLowerCase() === phrase && phrase) score += 5;
+      if (fold(name) === phrase && phrase) score += 5;
       // A role word in the query ("search box", "pay button") says what kind of element is wanted; that outranks
       // elements that merely mention the word, so a link saying "Search" loses to the actual search field.
       if (wantedRoles.size > 0) score += wantedRoles.has(role) ? 12 : -6;
