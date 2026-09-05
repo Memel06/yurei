@@ -47,19 +47,23 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 - Title and commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`,
   `refactor:`, `chore:`. PRs are squash-merged, so the PR title becomes the commit.
 - Keep a PR to one change. Say how you tested it in Chrome.
-- CI runs typecheck and build, packs the extension and starts the CLI on Node.js 18 to 24 on Linux, macOS and Windows.
+- CI typechecks, lints, tests and builds, packs the extension, and runs the built CLI through its installed launcher
+  on Linux with Node.js 18 and 24 and on Windows with Node.js 22.
 
 ## Releasing
 
-1. Bump the version in `yurei-extension/manifest.json` and `yurei-kit/package.json` (`npm version X.Y.Z -w yurei-kit --no-git-tag-version`).
-2. Commit, tag `vX.Y.Z` and push the tag.
-3. `npm run pack -w yurei-extension` zips `dist/` twice: `yurei-extension.zip` keeps the `key` in `manifest.json`,
-   which fixes the id an unpacked folder gets and the native host trusts; `yurei-extension-store.zip` drops it,
-   because the Chrome Web Store minted its own id for the listing and refuses an upload that carries a key.
-4. `npm publish -w yurei-kit` publishes the CLI (`prepublishOnly` builds it).
-5. Create the GitHub release from the tag and attach `yurei-extension/yurei-extension.zip`. Upload
-   `yurei-extension/yurei-extension-store.zip` to the Chrome Web Store developer console.
-6. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
-7. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
+1. Bump the version in `yurei-extension/manifest.json` and `yurei-kit/package.json`
+   (`npm version X.Y.Z -w yurei-kit --no-git-tag-version`), turn the `[Unreleased]` section of `CHANGELOG.md` into
+   `## [X.Y.Z] - <date>` with its link at the bottom, and merge that as `chore: release X.Y.Z`.
+2. Tag the merge commit `vX.Y.Z` and push the tag. `release.yml` checks that the tag matches both versions and has a
+   changelog section, runs typecheck, lint, tests and build, packs the extension, creates the GitHub release with the
+   changelog section as notes and both zips attached, and publishes `yurei-chrome` to npm with provenance. npm accepts
+   the workflow through trusted publishing, configured once on npmjs.com for this repository and `release.yml`, so no
+   token lives in the repository. Every step is safe to repeat: re-run the workflow if one fails.
+3. Upload `yurei-extension-store.zip` from the release to the Chrome Web Store developer console. `yurei-extension.zip`
+   keeps the `key` in `manifest.json`, which fixes the id an unpacked folder gets and the native host trusts; the store
+   minted its own id for the listing and refuses an upload that carries a key, so the store zip drops it.
+4. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
+5. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
    in `shared/protocol.ts` only when a message changes in a way the other side cannot ignore; both sides then report
    the mismatch to the user instead of failing silently, so keep new fields optional when you can.

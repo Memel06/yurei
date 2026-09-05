@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # the GitHub release
+  id-token: write # npm provenance through trusted publishing
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: The tag must match both versions and have a changelog section
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          kit="$(node -p "require('./yurei-kit/package.json').version")"
+          extension="$(node -p "require('./yurei-extension/manifest.json').version")"
+          if [ "$version" != "$kit" ] || [ "$version" != "$extension" ]; then
+            echo "tag v$version, but the CLI is $kit and the extension $extension"
+            exit 1
+          fi
+          grep -q "^## \[$version\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test --ignore-scripts
+      - run: npm run pack -w yurei-extension
+      - name: Release notes from the changelog section
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '/^## \[/ { p = index($0, "[" v "]") == 4; next } p' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > notes.md
+          printf '\n**Upgrade:** run `yurei update`. Chrome updates the extension by itself; an unpacked install takes `yurei-extension.zip` below.\n' >> notes.md
+          cat notes.md
+      - name: GitHub release with both extension zips
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zips="yurei-extension/yurei-extension.zip yurei-extension/yurei-extension-store.zip"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --clobber $zips
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "Yurei ${GITHUB_REF_NAME#v}" --notes-file notes.md $zips
+          fi
+      - name: Publish yurei-chrome to npm with provenance
+        run: |
+          npm install -g npm@latest # trusted publishing needs npm 11.5 or newer
+          npm publish -w yurei-kit --provenance --access public
