@@ -1,7 +1,16 @@
 import { isRecord } from "../../shared/protocol";
 import { ArgError } from "./args";
 import { errorMessage } from "./cdp";
-import { MAX_FIND_RESULTS, type FindHit, type FrameSelf, type FrameSlot, type PageMethod, type Rect, type TreeFilter, type Viewport } from "./page-api";
+import {
+  type FindHit,
+  type FrameSelf,
+  type FrameSlot,
+  MAX_FIND_RESULTS,
+  type PageMethod,
+  type Rect,
+  type TreeFilter,
+  type Viewport,
+} from "./page-api";
 import { clip, quote, truncateText } from "./text-utils";
 
 const MAX_FRAMES = 25;
@@ -32,7 +41,9 @@ const invoke = (name: string, callArgs: unknown[]): unknown => {
   const api = window.__yurei;
   if (!api) return { ok: false, error: "Yurei page tools are not available on this page" };
   const fn: unknown = Reflect.get(api, name);
-  return typeof fn === "function" ? Reflect.apply(fn, api, callArgs) : { ok: false, error: `Unknown page method ${name}` };
+  return typeof fn === "function"
+    ? Reflect.apply(fn, api, callArgs)
+    : { ok: false, error: `Unknown page method ${name}` };
 };
 
 async function inject(
@@ -53,7 +64,12 @@ function unwrap(result: unknown, method: PageMethod): Record<string, unknown> {
 
 const GONE = "The iframe holding this ref is no longer on the page. Call read_page or find again for fresh refs.";
 
-export async function callPage(tabId: number, frameId: number, method: PageMethod, params: ReadonlyArray<unknown>): Promise<Record<string, unknown>> {
+export async function callPage(
+  tabId: number,
+  frameId: number,
+  method: PageMethod,
+  params: ReadonlyArray<unknown>,
+): Promise<Record<string, unknown>> {
   try {
     const [first] = await inject({ tabId, frameIds: [frameId] }, method, params, true);
     return unwrap(first?.result, method);
@@ -64,7 +80,14 @@ export async function callPage(tabId: number, frameId: number, method: PageMetho
 }
 
 const rectOf = (v: unknown): Rect | null =>
-  isRecord(v) ? { x: fieldNumber(v, "x"), y: fieldNumber(v, "y"), width: fieldNumber(v, "width"), height: fieldNumber(v, "height") } : null;
+  isRecord(v)
+    ? {
+        x: fieldNumber(v, "x"),
+        y: fieldNumber(v, "y"),
+        width: fieldNumber(v, "width"),
+        height: fieldNumber(v, "height"),
+      }
+    : null;
 
 function slotsOf(data: Record<string, unknown>): ReadonlyArray<FrameSlot> {
   const raw = data["frames"];
@@ -75,7 +98,14 @@ function slotsOf(data: Record<string, unknown>): ReadonlyArray<FrameSlot> {
     const box = rectOf(item["box"]);
     const ref = item["ref"];
     if (!box || typeof ref !== "string") continue;
-    slots.push({ ref, depth: fieldNumber(item, "depth"), label: fieldString(item, "label"), box, src: fieldString(item, "src"), name: fieldString(item, "name") });
+    slots.push({
+      ref,
+      depth: fieldNumber(item, "depth"),
+      label: fieldString(item, "label"),
+      box,
+      src: fieldString(item, "src"),
+      name: fieldString(item, "name"),
+    });
   }
   return slots;
 }
@@ -87,7 +117,14 @@ export function viewportOf(data: Record<string, unknown>): Viewport {
 
 const selfOf = (data: Record<string, unknown>): FrameSelf | null => {
   const v = data["self"];
-  return isRecord(v) ? { href: fieldString(v, "href"), name: fieldString(v, "name"), width: fieldNumber(v, "width"), height: fieldNumber(v, "height") } : null;
+  return isRecord(v)
+    ? {
+        href: fieldString(v, "href"),
+        name: fieldString(v, "name"),
+        width: fieldNumber(v, "width"),
+        height: fieldNumber(v, "height"),
+      }
+    : null;
 };
 
 function hitsOf(data: Record<string, unknown>): ReadonlyArray<FindHit> {
@@ -118,7 +155,10 @@ export type FrameInfo = {
   readonly error: string | null;
 };
 
-export type FrameMap = { readonly byId: ReadonlyMap<number, FrameInfo>; readonly childOfSlot: ReadonlyMap<string, number> };
+export type FrameMap = {
+  readonly byId: ReadonlyMap<number, FrameInfo>;
+  readonly childOfSlot: ReadonlyMap<string, number>;
+};
 
 const slotKey = (parentFrameId: number, ref: string): string => `${parentFrameId}:${ref}`;
 const stripHash = (url: string): string => url.split("#")[0] ?? url;
@@ -169,7 +209,13 @@ export async function mapFrames(tabId: number): Promise<FrameMap> {
     const own = described.get(node.frameId);
     const viewport = own ? viewportOf(own) : null;
     if (node.parentFrameId < 0) {
-      byId.set(node.frameId, { frameId: node.frameId, parentFrameId: -1, slot: null, viewport, error: own ? null : NOT_SCRIPTABLE });
+      byId.set(node.frameId, {
+        frameId: node.frameId,
+        parentFrameId: -1,
+        slot: null,
+        viewport,
+        error: own ? null : NOT_SCRIPTABLE,
+      });
       continue;
     }
     const parent = described.get(node.parentFrameId);
@@ -181,7 +227,13 @@ export async function mapFrames(tabId: number): Promise<FrameMap> {
       claimed.add(slot.ref);
       childOfSlot.set(slotKey(node.parentFrameId, slot.ref), node.frameId);
     }
-    const error = !own ? NOT_SCRIPTABLE : !parent ? "parent frame is not scriptable" : !slot ? "could not tell which iframe hosts it" : null;
+    const error = !own
+      ? NOT_SCRIPTABLE
+      : !parent
+        ? "parent frame is not scriptable"
+        : !slot
+          ? "could not tell which iframe hosts it"
+          : null;
     byId.set(node.frameId, { frameId: node.frameId, parentFrameId: node.parentFrameId, slot, viewport, error });
   }
   return { byId, childOfSlot };
@@ -199,11 +251,20 @@ export type Walk = { readonly map: FrameMap; readonly results: ReadonlyArray<Fra
 const intersect = (a: Rect, b: Rect): Rect => {
   const x = Math.max(a.x, b.x);
   const y = Math.max(a.y, b.y);
-  return { x, y, width: Math.max(0, Math.min(a.x + a.width, b.x + b.width) - x), height: Math.max(0, Math.min(a.y + a.height, b.y + b.height) - y) };
+  return {
+    x,
+    y,
+    width: Math.max(0, Math.min(a.x + a.width, b.x + b.width) - x),
+    height: Math.max(0, Math.min(a.y + a.height, b.y + b.height) - y),
+  };
 };
 
 /** Runs a page method in the top frame and every identified iframe, telling each frame which part of it is on screen. */
-export async function walkFrames(tabId: number, method: PageMethod, paramsFor: (clip: Rect | null) => ReadonlyArray<unknown>): Promise<Walk> {
+export async function walkFrames(
+  tabId: number,
+  method: PageMethod,
+  paramsFor: (clip: Rect | null) => ReadonlyArray<unknown>,
+): Promise<Walk> {
   const map = await mapFrames(tabId);
   const top = map.byId.get(0);
   if (!top || top.error) throw new Error(`Cannot read this page: ${top?.error ?? "no top frame"}`);
@@ -213,9 +274,17 @@ export async function walkFrames(tabId: number, method: PageMethod, paramsFor: (
   for (const info of map.byId.values()) {
     if (!info.slot) continue;
     const parent = map.byId.get(info.parentFrameId);
-    const parentVisible = clips.get(info.parentFrameId) ?? (parent?.viewport ? { x: 0, y: 0, ...parent.viewport } : null);
-    const shown = parentVisible ? intersect(parentVisible, info.slot.box) : { x: info.slot.box.x, y: info.slot.box.y, width: 0, height: 0 };
-    clips.set(info.frameId, { x: shown.x - info.slot.box.x, y: shown.y - info.slot.box.y, width: shown.width, height: shown.height });
+    const parentVisible =
+      clips.get(info.parentFrameId) ?? (parent?.viewport ? { x: 0, y: 0, ...parent.viewport } : null);
+    const shown = parentVisible
+      ? intersect(parentVisible, info.slot.box)
+      : { x: info.slot.box.x, y: info.slot.box.y, width: 0, height: 0 };
+    clips.set(info.frameId, {
+      x: shown.x - info.slot.box.x,
+      y: shown.y - info.slot.box.y,
+      width: shown.width,
+      height: shown.height,
+    });
   }
 
   const results = await Promise.all(
@@ -224,7 +293,12 @@ export async function walkFrames(tabId: number, method: PageMethod, paramsFor: (
       .map(async (info): Promise<FrameResult> => {
         try {
           // mapFrames injected the page tools into every frame a moment ago.
-          const [first] = await inject({ tabId, frameIds: [info.frameId] }, method, paramsFor(clips.get(info.frameId) ?? null), false);
+          const [first] = await inject(
+            { tabId, frameIds: [info.frameId] },
+            method,
+            paramsFor(clips.get(info.frameId) ?? null),
+            false,
+          );
           return { frameId: info.frameId, slot: info.slot, data: unwrap(first?.result, method), error: null };
         } catch (e) {
           return { frameId: info.frameId, slot: info.slot, data: null, error: errorMessage(e) };
@@ -241,7 +315,9 @@ export function composeTree({ map, results }: Walk, filter: TreeFilter): string 
   const byFrame = new Map(results.map((r) => [r.frameId, r]));
   const render = (frame: FrameResult): string[] => {
     if (!frame.data) return [];
-    const lines = qualifyText(fieldString(frame.data, "text"), frame.frameId).split("\n").filter((line) => line.length > 0);
+    const lines = qualifyText(fieldString(frame.data, "text"), frame.frameId)
+      .split("\n")
+      .filter((line) => line.length > 0);
     for (const slot of slotsOf(frame.data)) {
       const marker = `[${qualifyRef(slot.ref, frame.frameId)}]`;
       const index = lines.findIndex((line) => line.includes(marker));
@@ -258,7 +334,8 @@ export function composeTree({ map, results }: Walk, filter: TreeFilter): string 
         if (filter === "interactive") lines.splice(index, 1);
         continue;
       }
-      lines[index] = `${lines[index] ?? ""} (contents not accessible: ${clip(child?.error ?? NOT_SCRIPTABLE, 100)}; click inside it by coordinate)`;
+      lines[index] =
+        `${lines[index] ?? ""} (contents not accessible: ${clip(child?.error ?? NOT_SCRIPTABLE, 100)}; click inside it by coordinate)`;
     }
     return lines;
   };
@@ -273,7 +350,8 @@ export function composeFind({ results }: Walk, query: string): string {
   for (const r of results) {
     if (!r.data) continue;
     total += fieldNumber(r.data, "total");
-    for (const hit of hitsOf(r.data)) hits.push({ ...hit, ref: qualifyRef(hit.ref, r.frameId), where: r.slot?.label ?? "" });
+    for (const hit of hitsOf(r.data))
+      hits.push({ ...hit, ref: qualifyRef(hit.ref, r.frameId), where: r.slot?.label ?? "" });
   }
   if (hits.length === 0) return `No elements match "${query}". Try different words, or use read_page to list the page.`;
   hits.sort((a, b) => b.score - a.score);
@@ -283,9 +361,10 @@ export function composeFind({ results }: Walk, query: string): string {
     if (h.where) parts.push(`(inside iframe ${h.where})`);
     return parts.join(" ");
   });
-  const header = total > MAX_FIND_RESULTS
-    ? `${total} matches, showing the best ${MAX_FIND_RESULTS} (refine the query for fewer):`
-    : `${total} match${total === 1 ? "" : "es"}:`;
+  const header =
+    total > MAX_FIND_RESULTS
+      ? `${total} matches, showing the best ${MAX_FIND_RESULTS} (refine the query for fewer):`
+      : `${total} match${total === 1 ? "" : "es"}:`;
   return `${header}\n${lines.join("\n")}`;
 }
 
@@ -297,7 +376,9 @@ export function composeText({ map, results }: Walk, maxChars: number): string {
     const r = byFrame.get(frameId);
     const text = r?.data ? fieldString(r.data, "text") : "";
     if (text) parts.push(path.length > 0 ? `--- iframe ${path.join(" > ")} ---\n${text}` : text);
-    const children = [...map.byId.values()].filter((f) => f.parentFrameId === frameId).sort((a, b) => a.frameId - b.frameId);
+    const children = [...map.byId.values()]
+      .filter((f) => f.parentFrameId === frameId)
+      .sort((a, b) => a.frameId - b.frameId);
     for (const child of children) if (child.slot) visit(child.frameId, [...path, child.slot.label]);
   };
   visit(0, []);

@@ -5,18 +5,8 @@
   "description": "Your AI, haunting your browser. Lets any AI tool that speaks MCP browse, click and type in the Chrome you already use.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArasyAbTyUuXvmAgR51eNAyO4/kMrIdiPBElc788RWYeMZ6cTjDvV3UWq9xwePtfy/iOO6wQXGx8nIZvJLBWdEpQ2WmcNujeniLvmTfuLDq/0vOEdSjBPijnywcGuPFOoBFfOwDD4Mowt3FqNZAxHFBbczmS2GjJ80SoLYMXHpW4jL0t3nwRyehSmR6NlZOz0ZzNxLLbsvkBLtxXXO4TigSh0DhzJBhwd0tSDBjQ9DpFtZU+PCZgdoKSAu/1wBnBJ2CO6vP4vsnqACIy6zvofjHXsHuAYzweiMEp10EPNp4wbiSbIFmMVoQnnlNJgT2EMN55Jd0M827lmTwzutm5m2wIDAQAB",
-  "permissions": [
-    "debugger",
-    "scripting",
-    "tabs",
-    "storage",
-    "alarms",
-    "nativeMessaging",
-    "webNavigation"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["debugger", "scripting", "tabs", "storage", "alarms", "nativeMessaging", "webNavigation"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -33,12 +23,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content/indicator.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["content/indicator.js"],
       "run_at": "document_idle"
     }
   ]

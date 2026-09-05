@@ -1,7 +1,7 @@
-import { build } from "esbuild";
 import { cp, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 

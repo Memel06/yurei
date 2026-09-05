@@ -58,7 +58,9 @@ export class TabSession {
       try {
         await chrome.debugger.sendCommand({ tabId: this.tabId }, "Runtime.evaluate", { expression: "1" });
       } catch {
-        throw new Error(`Tab ${this.tabId} is being debugged by something else. Close Chrome DevTools on that tab and retry.`);
+        throw new Error(
+          `Tab ${this.tabId} is being debugged by something else. Close Chrome DevTools on that tab and retry.`,
+        );
       }
     }
     this.attached = true;
@@ -86,9 +88,10 @@ export class TabSession {
     const details = res["exceptionDetails"];
     if (isRecord(details)) {
       const exception = details["exception"];
-      const text = isRecord(exception) && typeof exception["description"] === "string"
-        ? exception["description"]
-        : String(details["text"]);
+      const text =
+        isRecord(exception) && typeof exception["description"] === "string"
+          ? exception["description"]
+          : String(details["text"]);
       throw new Error(text);
     }
     const result = res["result"];
@@ -135,9 +138,12 @@ export class TabSession {
       case "Runtime.exceptionThrown": {
         const details = params["exceptionDetails"];
         const exception = isRecord(details) ? details["exception"] : undefined;
-        const text = isRecord(exception) && typeof exception["description"] === "string"
-          ? exception["description"]
-          : isRecord(details) ? String(details["text"]) : "Uncaught exception";
+        const text =
+          isRecord(exception) && typeof exception["description"] === "string"
+            ? exception["description"]
+            : isRecord(details)
+              ? String(details["text"])
+              : "Uncaught exception";
         pushCapped(this.console, { ts: Date.now(), level: "error", text });
         return;
       }

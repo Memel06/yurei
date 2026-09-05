@@ -5,10 +5,12 @@ import { VERSION } from "./version";
 export const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 const truecolor = /^(truecolor|24bit)$/i.test(process.env["COLORTERM"] ?? "");
-const rgb = (r: number, g: number, b: number, fallback: (s: string) => string) => (s: string): string => {
-  if (!pc.isColorSupported) return s;
-  return truecolor ? `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m` : fallback(s);
-};
+const rgb =
+  (r: number, g: number, b: number, fallback: (s: string) => string) =>
+  (s: string): string => {
+    if (!pc.isColorSupported) return s;
+    return truecolor ? `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m` : fallback(s);
+  };
 
 /** yurei.web.app's palette: glow for the kanji and anything worth a look, shu red for stop and failure, blue for the ghost. */
 export const glow = rgb(138, 211, 252, pc.cyan);
@@ -26,21 +28,16 @@ export const kicker = (label: string): string => dim(label.toUpperCase().split("
 const TAGLINE = "Your AI, haunting your browser.";
 
 // Block glyphs and kanji need a UTF-8 console; on Windows only the modern terminals announce one.
-export const unicode = process.platform !== "win32" || Boolean(process.env["WT_SESSION"] || process.env["TERM_PROGRAM"]);
+export const unicode =
+  process.platform !== "win32" || Boolean(process.env["WT_SESSION"] || process.env["TERM_PROGRAM"]);
 
 /** Brush numerals, as the site numbers its steps. */
 const NUMERALS = ["一", "二", "三", "四", "五"];
 export const numeral = (n: number): string => shu(unicode ? (NUMERALS[n - 1] ?? String(n)) : String(n));
 
-const GHOST = [
-  "      ▄▄████▄▄",
-  "    ▄██▀      ▀██▄",
-  "   ███   ●  ●   ███",
-  "    ▀██▄      ▄██▀",
-  "   ▄▄▄▀▀▀▀▀▀▀██▀",
-];
+const GHOST = ["      ▄▄████▄▄", "    ▄██▀      ▀██▄", "   ███   ●  ●   ███", "    ▀██▄      ▄██▀", "   ▄▄▄▀▀▀▀▀▀▀██▀"];
 
-const eyes = (row: string): string => row.replace(/●  ●/, (m) => pc.reset(bold(m)));
+const eyes = (row: string): string => row.replace(/● {2}●/, (m) => pc.reset(bold(m)));
 
 /** The brand row from the site, with the ghost alongside when the console can draw it. */
 export function banner(): string {

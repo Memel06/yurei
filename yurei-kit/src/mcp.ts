@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { COMPUTER_ACTIONS, UPDATE_COMMAND, type ToolName, type ToolResult } from "../../shared/protocol";
+import { COMPUTER_ACTIONS, type ToolName, type ToolResult, UPDATE_COMMAND } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
 import { GUIDE } from "./guide";
 import type { HostClient } from "./host-client";
@@ -13,15 +13,25 @@ type McpContent =
 
 const toMcp = (result: ToolResult): { content: McpContent[]; isError: boolean } => ({
   isError: result.isError,
-  content: result.content.map((block): McpContent =>
-    block.type === "text" ? { type: "text", text: block.text } : { type: "image", data: block.data, mimeType: block.mimeType },
+  content: result.content.map(
+    (block): McpContent =>
+      block.type === "text"
+        ? { type: "text", text: block.text }
+        : { type: "image", data: block.data, mimeType: block.mimeType },
   ),
 });
 
-const tabId = z.number().int().optional().describe("Tab id from tabs_context. Omit to use the active tab of Yurei's own window.");
+const tabId = z
+  .number()
+  .int()
+  .optional()
+  .describe("Tab id from tabs_context. Omit to use the active tab of Yurei's own window.");
 const selector = z.string().optional().describe('CSS selector, e.g. "main", "article", "#search", "table.results"');
 const coordinate = z.array(z.number()).min(2).max(2).describe("[x, y] in screenshot pixels");
-const screenshot = z.boolean().optional().describe("Also return a screenshot of the page afterwards. Only if you can see images.");
+const screenshot = z
+  .boolean()
+  .optional()
+  .describe("Also return a screenshot of the page afterwards. Only if you can see images.");
 
 export function createMcpServer(bridge: HostClient): McpServer {
   const server = new McpServer({ name: "yurei", version: VERSION }, { instructions: GUIDE });
@@ -31,7 +41,10 @@ export function createMcpServer(bridge: HostClient): McpServer {
     const latest = bridge.latest;
     if (updateMentioned || latest === null || !isNewer(latest, VERSION)) return null;
     updateMentioned = true;
-    return { type: "text", text: `Note: Yurei v${latest} is available (this is v${VERSION}). Tell the user they can update with \`${UPDATE_COMMAND}\`.` };
+    return {
+      type: "text",
+      text: `Note: Yurei v${latest} is available (this is v${VERSION}). Tell the user they can update with \`${UPDATE_COMMAND}\`.`,
+    };
   };
   const forward = (tool: ToolName) => async (args: Record<string, unknown>) => {
     const result = toMcp(await bridge.call(tool, args));
@@ -41,15 +54,26 @@ export function createMcpServer(bridge: HostClient): McpServer {
 
   server.registerTool(
     "tabs_context",
-    { description: "List open Chrome tabs with id, title and url, saying which are in Yurei's own window and which are the user's. Call it before working in a tab the user already has open.", inputSchema: {} },
+    {
+      description:
+        "List open Chrome tabs with id, title and url, saying which are in Yurei's own window and which are the user's. Call it before working in a tab the user already has open.",
+      inputSchema: {},
+    },
     () => forward("tabs_context")({}),
   );
 
   server.registerTool(
     "tabs_create",
     {
-      description: "Open a new tab in Yurei's own window, optionally at a url. Returns the new tab id and a view of the loaded page. Reuse tabs when you can: at most 3 tabs per site and 8 in all are allowed, and page loads are paced.",
-      inputSchema: { url: z.string().optional().describe("Address to open. Bare domains get https://, plain words become a Google search."), screenshot },
+      description:
+        "Open a new tab in Yurei's own window, optionally at a url. Returns the new tab id and a view of the loaded page. Reuse tabs when you can: at most 3 tabs per site and 8 in all are allowed, and page loads are paced.",
+      inputSchema: {
+        url: z
+          .string()
+          .optional()
+          .describe("Address to open. Bare domains get https://, plain words become a Google search."),
+        screenshot,
+      },
     },
     forward("tabs_create"),
   );
@@ -63,7 +87,8 @@ export function createMcpServer(bridge: HostClient): McpServer {
   server.registerTool(
     "navigate",
     {
-      description: "Load a url in a tab, or go back / forward / reload. Without tabId it uses Yurei's own window, opening it if needed. Waits for the page to load and returns a view of it.",
+      description:
+        "Load a url in a tab, or go back / forward / reload. Without tabId it uses Yurei's own window, opening it if needed. Waits for the page to load and returns a view of it.",
       inputSchema: {
         url: z.string().optional().describe("Address to open (bare domains get https://)."),
         action: z.enum(["back", "forward", "reload"]).optional().describe("History action, used when url is omitted."),
@@ -92,12 +117,22 @@ Actions:
 Every action returns the visible interactive elements with their refs afterwards; add screenshot=true to get an image too.`,
       inputSchema: {
         action: z.enum(COMPUTER_ACTIONS),
-        ref: z.string().optional().describe("Element reference like ref_12 (or frame3_ref_4 inside an iframe) from read_page/find/previous results"),
+        ref: z
+          .string()
+          .optional()
+          .describe(
+            "Element reference like ref_12 (or frame3_ref_4 inside an iframe) from read_page/find/previous results",
+          ),
         coordinate: coordinate.optional(),
         start_coordinate: coordinate.optional().describe("Drag start, for left_click_drag"),
         text: z.string().optional().describe("Text to type, or key(s) to press for the key action"),
         scroll_direction: z.enum(["up", "down", "left", "right"]).optional(),
-        scroll_amount: z.number().optional().describe("For scroll: ticks of 100px, default 3. For scroll_to_bottom: most screens to scroll through, default 10"),
+        scroll_amount: z
+          .number()
+          .optional()
+          .describe(
+            "For scroll: ticks of 100px, default 3. For scroll_to_bottom: most screens to scroll through, default 10",
+          ),
         duration: z.number().optional().describe("Seconds to wait, for the wait action"),
         modifiers: z.string().optional().describe('Held modifier keys for clicks, e.g. "shift" or "cmd+shift"'),
         screenshot,
@@ -126,7 +161,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "find",
     {
-      description: 'Find elements by a natural-language description such as "search box", "add to cart button", "link to pricing" or "email field". Returns up to 20 candidates with [ref_N] ids and whether each is visible. Matching is a fast text heuristic, so use the words that appear on screen.',
+      description:
+        'Find elements by a natural-language description such as "search box", "add to cart button", "link to pricing" or "email field". Returns up to 20 candidates with [ref_N] ids and whether each is visible. Matching is a fast text heuristic, so use the words that appear on screen.',
       inputSchema: { query: z.string().describe("What to look for"), tabId },
     },
     forward("find"),
@@ -135,7 +171,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "get_page_text",
     {
-      description: 'The readable text of the page (like select-all and copy). By default the main content, without header, navigation and footer. Pass selector or ref to read one part, e.g. selector="article" or the ref of a search result list; selector="body" reads everything. Use it for articles, search results, tables and error messages.',
+      description:
+        'The readable text of the page (like select-all and copy). By default the main content, without header, navigation and footer. Pass selector or ref to read one part, e.g. selector="article" or the ref of a search result list; selector="body" reads everything. Use it for articles, search results, tables and error messages.',
       inputSchema: {
         selector,
         ref: z.string().optional().describe("Read only this element, e.g. a ref from find or read_page"),
@@ -149,7 +186,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "form_input",
     {
-      description: "Set a form field directly by ref: text inputs and textareas (value text), checkboxes and radios (true/false), selects (option label or value), rich-text editors. More reliable than clicking and typing, and it fires the events web apps expect.",
+      description:
+        "Set a form field directly by ref: text inputs and textareas (value text), checkboxes and radios (true/false), selects (option label or value), rich-text editors. More reliable than clicking and typing, and it fires the events web apps expect.",
       inputSchema: {
         ref: z.string().describe("Element reference like ref_12 or frame3_ref_4"),
         value: z.union([z.string(), z.boolean(), z.number()]).describe("Text, option, or true/false for checkboxes"),
@@ -162,7 +200,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "javascript_tool",
     {
-      description: "Run JavaScript inside the page and return the JSON-serialised result. Accepts an expression or statements with return; await is supported. Use it for data extraction or when the UI has no other handle.",
+      description:
+        "Run JavaScript inside the page and return the JSON-serialised result. Accepts an expression or statements with return; await is supported. Use it for data extraction or when the UI has no other handle.",
       inputSchema: { code: z.string().describe("JavaScript to run in the page"), tabId },
     },
     forward("javascript_tool"),
@@ -171,7 +210,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "read_console_messages",
     {
-      description: "Console output (log, warn, error, uncaught exceptions, auto-accepted dialogs) recorded since Yurei first touched the tab. Newest last.",
+      description:
+        "Console output (log, warn, error, uncaught exceptions, auto-accepted dialogs) recorded since Yurei first touched the tab. Newest last.",
       inputSchema: {
         pattern: z.string().optional().describe("Case-insensitive regex filter"),
         limit: z.number().optional().describe("Max entries, default 50"),
@@ -185,7 +225,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "read_network_requests",
     {
-      description: "Network requests (method, status, type, url) recorded since Yurei first touched the tab. Useful for debugging APIs and failed loads.",
+      description:
+        "Network requests (method, status, type, url) recorded since Yurei first touched the tab. Useful for debugging APIs and failed loads.",
       inputSchema: {
         pattern: z.string().optional().describe("Case-insensitive regex filter on method, type or url"),
         limit: z.number().optional().describe("Max entries, default 50"),
@@ -199,7 +240,8 @@ filter="interactive" (default) lists only clickable/typeable elements currently 
   server.registerTool(
     "resize_window",
     {
-      description: "Resize the Chrome window that contains the tab (outer size in pixels). Handy to get a consistent viewport for screenshots.",
+      description:
+        "Resize the Chrome window that contains the tab (outer size in pixels). Handy to get a consistent viewport for screenshots.",
       inputSchema: { width: z.number(), height: z.number(), tabId },
     },
     forward("resize_window"),

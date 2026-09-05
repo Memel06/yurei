@@ -7,8 +7,15 @@ export type Screenshot = { readonly data: string; readonly width: number; readon
 export type ViewportInfo = { readonly width: number; readonly height: number; readonly dpr: number };
 
 export async function viewportInfo(session: TabSession): Promise<ViewportInfo> {
-  const v = await session.evaluate("({ width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio })");
-  if (!isRecord(v) || typeof v["width"] !== "number" || typeof v["height"] !== "number" || typeof v["dpr"] !== "number") {
+  const v = await session.evaluate(
+    "({ width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio })",
+  );
+  if (
+    !isRecord(v) ||
+    typeof v["width"] !== "number" ||
+    typeof v["height"] !== "number" ||
+    typeof v["dpr"] !== "number"
+  ) {
     throw new Error("Could not read the viewport size");
   }
   return { width: v["width"], height: v["height"], dpr: v["dpr"] };
@@ -36,7 +43,12 @@ async function resizeJpeg(base64: string, width: number, height: number): Promis
 /** Captures the viewport at most MAX_IMAGE_WIDTH wide and records the image→CSS pixel ratio on the session. */
 export async function captureScreenshot(session: TabSession): Promise<Screenshot> {
   const vp = await viewportInfo(session);
-  const res = await session.send("Page.captureScreenshot", { format: "jpeg", quality: 85, captureBeyondViewport: false, fromSurface: true });
+  const res = await session.send("Page.captureScreenshot", {
+    format: "jpeg",
+    quality: 85,
+    captureBeyondViewport: false,
+    fromSurface: true,
+  });
   if (!isRecord(res) || typeof res["data"] !== "string") throw new Error("Page.captureScreenshot returned no image");
   const width = Math.min(vp.width, MAX_IMAGE_WIDTH);
   const height = Math.round((vp.height * width) / vp.width);

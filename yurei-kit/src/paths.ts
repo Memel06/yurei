@@ -21,7 +21,7 @@ export function repoRoot(): string | null {
 }
 
 /** Where Chrome and the harnesses find the CLI: a checkout's build, or the copy `yurei setup` keeps in ~/.yurei. */
-export const cliPath = (): string => repoRoot() !== null ? scriptPath() : join(yureiHome(), "yurei.mjs");
+export const cliPath = (): string => (repoRoot() !== null ? scriptPath() : join(yureiHome(), "yurei.mjs"));
 
 /** Chrome can only start an executable, and it appends its own arguments, so a small script runs the CLI. */
 export const launcherPath = (): string => join(yureiHome(), isWindows ? "yurei.cmd" : "yurei");
@@ -76,7 +76,9 @@ type BrowserEntry = readonly [name: string, dir: string];
 const posixTargets = (): ReadonlyArray<HostManifestTarget> => {
   const home = homedir();
   const mac = process.platform === "darwin";
-  const base = mac ? join(home, "Library", "Application Support") : (process.env["XDG_CONFIG_HOME"] ?? join(home, ".config"));
+  const base = mac
+    ? join(home, "Library", "Application Support")
+    : (process.env["XDG_CONFIG_HOME"] ?? join(home, ".config"));
   const browsers: ReadonlyArray<BrowserEntry> = mac
     ? [
         ["Google Chrome", "Google/Chrome"],

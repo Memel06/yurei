@@ -1,5 +1,16 @@
 import { spawn } from "node:child_process";
-import { accessSync, chmodSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
+import {
+  accessSync,
+  chmodSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { isRecord } from "../../shared/protocol";
@@ -173,7 +184,10 @@ const PI_ADAPTER = "npm:pi-mcp-adapter";
 const piHasAdapter = (): boolean => {
   const { config } = readJsonConfig(join(PI_AGENT_DIR(), "settings.json"));
   const packages = config["packages"];
-  return Array.isArray(packages) && packages.some((p: unknown) => (typeof p === "string" ? p : isRecord(p) ? p["source"] : null) === PI_ADAPTER);
+  return (
+    Array.isArray(packages) &&
+    packages.some((p: unknown) => (typeof p === "string" ? p : isRecord(p) ? p["source"] : null) === PI_ADAPTER)
+  );
 };
 
 /** pi has no MCP support of its own; the pi-mcp-adapter package reads ~/.pi/agent/mcp.json. */
@@ -186,7 +200,9 @@ async function configurePi(progress: Progress): Promise<string> {
   try {
     await run(pi, ["install", PI_ADAPTER], progress);
   } catch (e) {
-    throw new Error(`${file} is written, but pi could not install ${PI_ADAPTER} (${e instanceof Error ? e.message : String(e)}). Run: pi install ${PI_ADAPTER}`);
+    throw new Error(
+      `${file} is written, but pi could not install ${PI_ADAPTER} (${e instanceof Error ? e.message : String(e)}). Run: pi install ${PI_ADAPTER}`,
+    );
   }
   return `${file} + ${PI_ADAPTER}`;
 }
@@ -194,7 +210,11 @@ async function configurePi(progress: Progress): Promise<string> {
 const tomlString = (s: string): string => JSON.stringify(s);
 const codexBlock = (): string => {
   const { command, args } = serverCommand();
-  return [`[mcp_servers.yurei]`, `command = ${tomlString(command)}`, `args = [${args.map(tomlString).join(", ")}]`].join("\n");
+  return [
+    `[mcp_servers.yurei]`,
+    `command = ${tomlString(command)}`,
+    `args = [${args.map(tomlString).join(", ")}]`,
+  ].join("\n");
 };
 
 /** Replaces or appends the `[mcp_servers.yurei]` table, leaving every other line of the file untouched. */
@@ -259,13 +279,15 @@ Add the "mcp" block to ~/.config/opencode/opencode.json (or .jsonc).`;
     hint: `~/.pi/agent/mcp.json + ${PI_ADAPTER}`,
     installed: () => findCommand("pi") !== null || existsSync(PI_AGENT_DIR()),
     configure: configurePi,
-    snippet: () => mcpServersSnippet(`Save as ~/.pi/agent/mcp.json, and install the MCP adapter once: pi install ${PI_ADAPTER}`),
+    snippet: () =>
+      mcpServersSnippet(`Save as ~/.pi/agent/mcp.json, and install the MCP adapter once: pi install ${PI_ADAPTER}`),
   },
   {
     id: "cursor",
     name: "Cursor",
     hint: "~/.cursor/mcp.json",
-    installed: () => anyExists(join(homedir(), ".cursor"), "/Applications/Cursor.app") || findCommand("cursor") !== null,
+    installed: () =>
+      anyExists(join(homedir(), ".cursor"), "/Applications/Cursor.app") || findCommand("cursor") !== null,
     configure: async () => patchMcpServers(join(homedir(), ".cursor", "mcp.json")),
     snippet: () => mcpServersSnippet("Save as ~/.cursor/mcp.json (all projects) or <project>/.cursor/mcp.json."),
   },
@@ -273,7 +295,9 @@ Add the "mcp" block to ~/.config/opencode/opencode.json (or .jsonc).`;
     id: "windsurf",
     name: "Windsurf",
     hint: "~/.codeium/windsurf/mcp_config.json",
-    installed: () => anyExists(join(homedir(), ".codeium", "windsurf"), "/Applications/Windsurf.app") || findCommand("windsurf") !== null,
+    installed: () =>
+      anyExists(join(homedir(), ".codeium", "windsurf"), "/Applications/Windsurf.app") ||
+      findCommand("windsurf") !== null,
     configure: async () => patchMcpServers(join(homedir(), ".codeium", "windsurf", "mcp_config.json")),
     snippet: () => mcpServersSnippet("Merge into ~/.codeium/windsurf/mcp_config.json."),
   },
@@ -291,7 +315,10 @@ Add the "mcp" block to ~/.config/opencode/opencode.json (or .jsonc).`;
     hint: "",
     installed: () => false,
     configure: null,
-    snippet: () => mcpServersSnippet("Any MCP client that can launch a local stdio server accepts this shape (Zed, Continue, Cline, Gemini CLI, ...)."),
+    snippet: () =>
+      mcpServersSnippet(
+        "Any MCP client that can launch a local stdio server accepts this shape (Zed, Continue, Cline, Gemini CLI, ...).",
+      ),
   },
 ];
 

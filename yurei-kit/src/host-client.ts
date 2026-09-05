@@ -3,10 +3,15 @@ import { readdirSync, rmSync, statSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
 import { join } from "node:path";
 import {
-  PROTOCOL, errorResult, parseHostToSession,
-  type Args, type SessionToHost, type ToolName, type ToolResult,
+  type Args,
+  errorResult,
+  PROTOCOL,
+  parseHostToSession,
+  type SessionToHost,
+  type ToolName,
+  type ToolResult,
 } from "../../shared/protocol";
-import { FrameParser, encodeFrame } from "./framing";
+import { encodeFrame, FrameParser } from "./framing";
 import { isHostSocketFile, isPrivateDir, socketAddress, socketDir } from "./paths";
 
 export type HostClientOptions = {
@@ -145,9 +150,15 @@ export class HostClient {
         for (const raw of parser.push(chunk)) {
           const message = parseHostToSession(raw);
           if (message?.type !== "welcome") continue;
-          this.extension = { connected: message.extensionConnected, version: message.extensionVersion, protocol: message.extensionProtocol };
+          this.extension = {
+            connected: message.extensionConnected,
+            version: message.extensionVersion,
+            protocol: message.extensionProtocol,
+          };
           this.host = { version: message.version, latest: message.latest };
-          this.options.log(`connected to native host at ${path} (host v${message.version || "<0.3"}, extension ${message.extensionConnected ? `v${message.extensionVersion}` : "not ready"})`);
+          this.options.log(
+            `connected to native host at ${path} (host v${message.version || "<0.3"}, extension ${message.extensionConnected ? `v${message.extensionVersion}` : "not ready"})`,
+          );
           finish(true);
         }
       });
@@ -234,7 +245,11 @@ export class HostClient {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        resolve(errorResult(`${tool} timed out after ${timeoutMs / 1000}s. The page may be hung; try navigate(action=reload).`));
+        resolve(
+          errorResult(
+            `${tool} timed out after ${timeoutMs / 1000}s. The page may be hung; try navigate(action=reload).`,
+          ),
+        );
       }, timeoutMs);
       this.pending.set(id, { resolve, timer });
       if (!this.send({ type: "call", id, tool, args })) {

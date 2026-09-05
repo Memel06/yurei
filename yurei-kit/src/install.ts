@@ -3,7 +3,16 @@ import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, rmSync, syml
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { EXTENSION_ID, NATIVE_HOST_NAME, UNPACKED_EXTENSION_ID } from "../../shared/protocol";
-import { cliPath, ensureDir, hostManifestTargets, isWindows, launcherPath, scriptPath, yureiHome, type HostManifestTarget } from "./paths";
+import {
+  cliPath,
+  ensureDir,
+  type HostManifestTarget,
+  hostManifestTargets,
+  isWindows,
+  launcherPath,
+  scriptPath,
+  yureiHome,
+} from "./paths";
 
 export type InstallReport = {
   readonly launcher: string;

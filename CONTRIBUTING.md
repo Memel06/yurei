@@ -9,6 +9,7 @@ changes through a reviewed pull request with green CI.
 npm install
 npm run build        # extension → yurei-extension/dist, CLI → yurei-kit/dist/yurei.mjs
 npm run typecheck
+npm run lint         # Biome: formatting and lint rules; `npm run format` fixes what it can
 sh install.sh        # registers this checkout's build with Chrome and runs the setup wizard
 ```
 
@@ -32,6 +33,7 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 ## Style
 
 - TypeScript, strict. No `any`, no `@ts-ignore`, `unknown` only with narrowing, `readonly` where data does not change.
+- [Biome](https://biomejs.dev) formats and lints everything (`biome.jsonc`); run `npm run format` before committing, CI runs `npm run lint`.
 - Comments explain why, never what. Delete dead code instead of commenting it out.
 - The popup, the in-page indicator and the website share one look: night `#0a0b12`, paper `#f2ecdf`, glow blue
   `#4274f2`, seal red `#c73a27`, Shippori Mincho B1 for titles and Yuji Syuku for the kanji. Both fonts are

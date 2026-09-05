@@ -1,6 +1,13 @@
 import {
-  NATIVE_HOST_NAME, PROTOCOL, errorResult, parseHostToExtension,
-  type Args, type ExtensionToHost, type Session, type ToolName, type ToolResult,
+  type Args,
+  type ExtensionToHost,
+  errorResult,
+  NATIVE_HOST_NAME,
+  PROTOCOL,
+  parseHostToExtension,
+  type Session,
+  type ToolName,
+  type ToolResult,
 } from "../../shared/protocol";
 import { errorMessage } from "./cdp";
 
@@ -63,7 +70,12 @@ export class NativeBridge {
       this.hostProtocol = "";
       this.onChange();
     });
-    this.send({ type: "hello", protocol: PROTOCOL, extensionId: chrome.runtime.id, version: chrome.runtime.getManifest().version });
+    this.send({
+      type: "hello",
+      protocol: PROTOCOL,
+      extensionId: chrome.runtime.id,
+      version: chrome.runtime.getManifest().version,
+    });
   }
 
   private onMessage(raw: unknown): void {
@@ -94,7 +106,9 @@ export class NativeBridge {
       case "call":
         // One tool at a time: two harness sessions must not fight over the debugger.
         this.queue = this.queue.then(async () => {
-          const result = await this.handler(message.tool, message.args).catch((e: unknown) => errorResult(errorMessage(e)));
+          const result = await this.handler(message.tool, message.args).catch((e: unknown) =>
+            errorResult(errorMessage(e)),
+          );
           this.send({ type: "result", id: message.id, result });
         });
         return;

@@ -1,4 +1,4 @@
-import { isRecord, UPDATE_COMMAND, type Session } from "../../shared/protocol";
+import { isRecord, type Session, UPDATE_COMMAND } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
 
 export type IndicatorMessage =
@@ -28,8 +28,14 @@ export type UpdateHint = { readonly text: string; readonly command: string | nul
 export function updateHint(status: StatusResponse): UpdateHint | null {
   if (status.connected && !status.compatible) {
     return isNewer(status.version, status.hostVersion)
-      ? { text: `The command line tool (v${status.hostVersion}) is older than this extension (v${status.version}). Update it with `, command: UPDATE_COMMAND }
-      : { text: `This extension (v${status.version}) is older than the command line tool (v${status.hostVersion}). Chrome updates it within a few hours; reloading it in chrome://extensions may do it now.`, command: null };
+      ? {
+          text: `The command line tool (v${status.hostVersion}) is older than this extension (v${status.version}). Update it with `,
+          command: UPDATE_COMMAND,
+        }
+      : {
+          text: `This extension (v${status.version}) is older than the command line tool (v${status.hostVersion}). Chrome updates it within a few hours; reloading it in chrome://extensions may do it now.`,
+          command: null,
+        };
   }
   if (status.latest !== null && status.hostVersion && isNewer(status.latest, status.hostVersion)) {
     return { text: `Yurei v${status.latest} is out. Update with `, command: UPDATE_COMMAND };

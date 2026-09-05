@@ -1,11 +1,44 @@
-import { COMPUTER_ACTIONS, type Args, type ToolName, type ToolResult, errorResult, isRecord, textResult } from "../../shared/protocol";
-import { ArgError, optBoolean, optCoordinate, optEnum, optNumber, optString, reqEnum, reqNumber, reqString, type Coordinate } from "./args";
+import {
+  type Args,
+  COMPUTER_ACTIONS,
+  errorResult,
+  isRecord,
+  type ToolName,
+  type ToolResult,
+  textResult,
+} from "../../shared/protocol";
+import {
+  ArgError,
+  type Coordinate,
+  optBoolean,
+  optCoordinate,
+  optEnum,
+  optNumber,
+  optString,
+  reqEnum,
+  reqNumber,
+  reqString,
+} from "./args";
 import { errorMessage, sessions, type TabSession } from "./cdp";
-import { callPage, chainOffset, composeFind, composeText, composeTree, fieldNumber, fieldString, frameChain, frameOfRef, localRef, qualifyText, viewportOf, walkFrames } from "./frames";
+import {
+  callPage,
+  chainOffset,
+  composeFind,
+  composeText,
+  composeTree,
+  fieldNumber,
+  fieldString,
+  frameChain,
+  frameOfRef,
+  localRef,
+  qualifyText,
+  viewportOf,
+  walkFrames,
+} from "./frames";
 import { hideForCapture, markActive, moveCursor, showAfterCapture } from "./indicator";
 import { MOD, parseKeyPress } from "./keys";
 import { createOwnWindow, ownTabs, ownWindowId } from "./own-window";
-import { movePath, pause, siteOf, sleep, takeTurn, type Point } from "./pacing";
+import { movePath, type Point, pause, siteOf, sleep, takeTurn } from "./pacing";
 import type { Rect, TreeFilter, TreeOptions } from "./page-api";
 import { captureScreenshot, viewportInfo } from "./screenshot";
 import { clip, quote, truncateText } from "./text-utils";
@@ -43,15 +76,19 @@ async function defaultTab(): Promise<chrome.tabs.Tab | undefined> {
 async function resolveTab(args: Args, allowRestricted = false): Promise<chrome.tabs.Tab> {
   const requested = optNumber(args, "tabId");
   const tab = requested === undefined ? await defaultTab() : await chrome.tabs.get(requested).catch(() => undefined);
-  if (requested !== undefined && !tab) throw new ArgError(`No tab with id ${requested}. Call tabs_context to list open tabs.`);
+  if (requested !== undefined && !tab)
+    throw new ArgError(`No tab with id ${requested}. Call tabs_context to list open tabs.`);
   if (!tab) throw new ArgError("No open tab. Call tabs_create with a url first.");
   const tabId = tabIdOf(tab);
   if (!allowRestricted && RESTRICTED_URL.test(tab.url ?? "")) {
-    throw new ArgError(`Tab ${tabId} shows a browser-internal page (${tab.url}) that cannot be controlled. Use navigate with a website url first.`);
+    throw new ArgError(
+      `Tab ${tabId} shows a browser-internal page (${tab.url}) that cannot be controlled. Use navigate with a website url first.`,
+    );
   }
   const until = stoppedUntil.get(tabId);
   if (until !== undefined) {
-    if (Date.now() < until) throw new ArgError("The user pressed Stop on this tab. Stop working on it until the user asks you to continue.");
+    if (Date.now() < until)
+      throw new ArgError("The user pressed Stop on this tab. Stop working on it until the user asks you to continue.");
     stoppedUntil.delete(tabId);
   }
   // Screenshots need a visible tab, and the user should see what the AI is doing.
@@ -66,16 +103,29 @@ type Outline = { readonly text: string; readonly viewport: string; readonly cons
 
 /** Outline of the whole tab: top frame plus every reachable iframe, composed into one indented text. Cookie banners get dismissed on the way. */
 async function outline(tabId: number, filter: TreeFilter, maxChars: number, viewportOnly: boolean): Promise<Outline> {
-  const options = (clip: Rect | null, dismissConsent: boolean): TreeOptions => ({ filter, ref: null, selector: null, maxChars, viewportOnly, clip, dismissConsent });
+  const options = (clip: Rect | null, dismissConsent: boolean): TreeOptions => ({
+    filter,
+    ref: null,
+    selector: null,
+    maxChars,
+    viewportOnly,
+    clip,
+    dismissConsent,
+  });
   let walk = await walkFrames(tabId, "tree", (clip) => [options(clip, true)]);
-  const consent = walk.results.map((r) => (r.data ? fieldString(r.data, "consent") : "")).find((c) => c.length > 0) ?? null;
+  const consent =
+    walk.results.map((r) => (r.data ? fieldString(r.data, "consent") : "")).find((c) => c.length > 0) ?? null;
   if (consent !== null) {
     // The outline just taken still shows the banner; give the page a moment to drop it and look again.
     await pause(600);
     walk = await walkFrames(tabId, "tree", (clip) => [options(clip, false)]);
   }
   const vp = viewportOf(walk.results.find((r) => r.frameId === 0)?.data ?? {});
-  return { text: truncateText(composeTree(walk, filter), maxChars, "use read_page with a ref or selector to focus"), viewport: `${vp.width}x${vp.height}`, consent };
+  return {
+    text: truncateText(composeTree(walk, filter), maxChars, "use read_page with a ref or selector to focus"),
+    viewport: `${vp.width}x${vp.height}`,
+    consent,
+  };
 }
 
 const consentNote = (label: string): string => `Note: dismissed a cookie banner by clicking ${quote(label)}.`;
@@ -87,7 +137,9 @@ async function snapshot(tabId: number, session: TabSession, headline: string, wi
   const tab = await chrome.tabs.get(tabId);
   const notes = session.takeNotes().map((n) => `Note: ${n}`);
   if (tree.consent !== null) notes.push(consentNote(tree.consent));
-  const header = [headline, `Tab ${tabId}: ${tab.title ?? ""}`, `URL: ${tab.url ?? ""}`, ...notes].filter((l) => l.length > 0).join("\n");
+  const header = [headline, `Tab ${tabId}: ${tab.title ?? ""}`, `URL: ${tab.url ?? ""}`, ...notes]
+    .filter((l) => l.length > 0)
+    .join("\n");
   const elements = tree.text || "(none visible; scroll or use read_page filter=all)";
   const elementsBlock = `Interactive elements in view (use their [ref] with computer or form_input):\n${elements}`;
 
@@ -99,7 +151,10 @@ async function snapshot(tabId: number, session: TabSession, headline: string, wi
     return {
       isError: false,
       content: [
-        { type: "text", text: `${header}\nScreenshot ${shot.width}x${shot.height}px; coordinates for computer actions are in these pixels.\n${elementsBlock}` },
+        {
+          type: "text",
+          text: `${header}\nScreenshot ${shot.width}x${shot.height}px; coordinates for computer actions are in these pixels.\n${elementsBlock}`,
+        },
         { type: "image", mimeType: "image/jpeg", data: shot.data },
       ],
     };
@@ -138,7 +193,8 @@ function normalizeUrl(input: string): string {
 type Target = { readonly x: number; readonly y: number; readonly label: string };
 
 /** A CSS-pixel point expressed in the last screenshot's pixels, the unit coordinates are given in. */
-const imagePoint = (session: TabSession, { x, y }: Target): string => `(${Math.round(x * session.imageScale)}, ${Math.round(y * session.imageScale)})`;
+const imagePoint = (session: TabSession, { x, y }: Target): string =>
+  `(${Math.round(x * session.imageScale)}, ${Math.round(y * session.imageScale)})`;
 
 type ScrollMetrics = { readonly top: number; readonly height: number; readonly view: number };
 
@@ -154,7 +210,8 @@ async function scrollMetrics(session: TabSession, { x, y }: Point): Promise<Scro
     const s = el && el !== doc && el !== document.body ? el : doc;
     return { top: s.scrollTop, height: s.scrollHeight, view: s.clientHeight };
   })()`);
-  if (!isRecord(v) || typeof v["top"] !== "number" || typeof v["height"] !== "number" || typeof v["view"] !== "number") throw new Error("Could not read the scroll position");
+  if (!isRecord(v) || typeof v["top"] !== "number" || typeof v["height"] !== "number" || typeof v["view"] !== "number")
+    throw new Error("Could not read the scroll position");
   return { top: v["top"], height: v["height"], view: v["view"] };
 }
 
@@ -163,13 +220,20 @@ async function toCss(session: TabSession, [x, y]: Coordinate): Promise<Target> {
   const cssY = y / session.imageScale;
   const vp = await viewportInfo(session);
   if (cssX < 0 || cssY < 0 || cssX > vp.width || cssY > vp.height) {
-    throw new ArgError(`Coordinate [${x}, ${y}] is outside the ${Math.round(vp.width * session.imageScale)}x${Math.round(vp.height * session.imageScale)} screenshot. Take a new screenshot first.`);
+    throw new ArgError(
+      `Coordinate [${x}, ${y}] is outside the ${Math.round(vp.width * session.imageScale)}x${Math.round(vp.height * session.imageScale)} screenshot. Take a new screenshot first.`,
+    );
   }
   return { x: cssX, y: cssY, label: "" };
 }
 
 /** Position of a ref in top-frame viewport coordinates, whichever frame it lives in. */
-async function refTarget(session: TabSession, tabId: number, ref: string, method: "rect" | "scrollTo"): Promise<Target> {
+async function refTarget(
+  session: TabSession,
+  tabId: number,
+  ref: string,
+  method: "rect" | "scrollTo",
+): Promise<Target> {
   const frameId = frameOfRef(ref);
   const chain = await frameChain(tabId, frameId);
   await chainOffset(tabId, chain);
@@ -180,7 +244,11 @@ async function refTarget(session: TabSession, tabId: number, ref: string, method
   const offset = await chainOffset(tabId, chain);
   const vp = await viewportInfo(session);
   const clamp = (v: number, max: number): number => Math.min(Math.max(v, 1), max - 1);
-  return { x: clamp(offset.x + fieldNumber(r, "x"), vp.width), y: clamp(offset.y + fieldNumber(r, "y"), vp.height), label };
+  return {
+    x: clamp(offset.x + fieldNumber(r, "x"), vp.width),
+    y: clamp(offset.y + fieldNumber(r, "y"), vp.height),
+    label,
+  };
 }
 
 async function resolveTarget(args: Args, session: TabSession, tabId: number): Promise<Target> {
@@ -200,7 +268,13 @@ function modifiersFrom(args: Args): number {
 const BUTTON_MASK = { left: 1, right: 2, middle: 4 } as const;
 type Button = keyof typeof BUTTON_MASK;
 
-async function mouse(session: TabSession, type: string, x: number, y: number, extra: Record<string, unknown> = {}): Promise<void> {
+async function mouse(
+  session: TabSession,
+  type: string,
+  x: number,
+  y: number,
+  extra: Record<string, unknown> = {},
+): Promise<void> {
   await session.send("Input.dispatchMouseEvent", { type, x: Math.round(x), y: Math.round(y), ...extra });
 }
 
@@ -217,11 +291,23 @@ async function moveTo(session: TabSession, tabId: number, to: Point, buttons: nu
   session.cursor = { x: to.x, y: to.y };
 }
 
-async function click(session: TabSession, tabId: number, target: Target, button: Button, count: number, modifiers: number): Promise<void> {
+async function click(
+  session: TabSession,
+  tabId: number,
+  target: Target,
+  button: Button,
+  count: number,
+  modifiers: number,
+): Promise<void> {
   await moveTo(session, tabId, target, 0, modifiers);
   await pause(60);
   for (let i = 1; i <= count; i++) {
-    await mouse(session, "mousePressed", target.x, target.y, { button, buttons: BUTTON_MASK[button], clickCount: i, modifiers });
+    await mouse(session, "mousePressed", target.x, target.y, {
+      button,
+      buttons: BUTTON_MASK[button],
+      clickCount: i,
+      modifiers,
+    });
     await pause(20);
     await mouse(session, "mouseReleased", target.x, target.y, { button, buttons: 0, clickCount: i, modifiers });
     if (i < count) await pause(80);
@@ -231,7 +317,13 @@ async function click(session: TabSession, tabId: number, target: Target, button:
 async function pressKey(session: TabSession, combo: string): Promise<void> {
   const { def, modifiers, commands } = parseKeyPress(combo);
   const printable = def.text !== undefined && (modifiers & (MOD.ctrl | MOD.meta | MOD.alt)) === 0;
-  const base = { key: def.key, code: def.code, windowsVirtualKeyCode: def.keyCode, nativeVirtualKeyCode: def.keyCode, modifiers };
+  const base = {
+    key: def.key,
+    code: def.code,
+    windowsVirtualKeyCode: def.keyCode,
+    nativeVirtualKeyCode: def.keyCode,
+    modifiers,
+  };
   await session.send("Input.dispatchKeyEvent", {
     ...base,
     type: printable ? "keyDown" : "rawKeyDown",
@@ -258,7 +350,8 @@ async function computer(args: Args): Promise<ToolResult> {
   await session.ensureAttached();
   const action = reqEnum(args, "action", COMPUTER_ACTIONS);
   if (action !== "screenshot" && action !== "wait") await takeTurn(tab.url ?? "", "action");
-  const view = (headline: string): Promise<ToolResult> => snapshot(tabId, session, headline, action === "screenshot" || wantsScreenshot(args));
+  const view = (headline: string): Promise<ToolResult> =>
+    snapshot(tabId, session, headline, action === "screenshot" || wantsScreenshot(args));
 
   switch (action) {
     case "screenshot":
@@ -300,7 +393,8 @@ async function computer(args: Args): Promise<ToolResult> {
 
     case "key": {
       const combo = optString(args, "text");
-      if (!combo) throw new ArgError('key needs "text", e.g. "Enter", "cmd+a", "ctrl+shift+t", or a sequence "Tab Tab Enter".');
+      if (!combo)
+        throw new ArgError('key needs "text", e.g. "Enter", "cmd+a", "ctrl+shift+t", or a sequence "Tab Tab Enter".');
       await markActive(tabId);
       for (const part of combo.trim().split(/\s+/)) {
         await pressKey(session, part);
@@ -315,10 +409,12 @@ async function computer(args: Args): Promise<ToolResult> {
       const ticks = optNumber(args, "scroll_amount") ?? 3;
       const px = Math.max(1, ticks) * 100;
       const vp = await viewportInfo(session);
-      const target = optString(args, "ref") || optCoordinate(args, "coordinate")
-        ? await resolveTarget(args, session, tabId)
-        : { x: vp.width / 2, y: vp.height / 2, label: "" };
-      const [deltaX, deltaY] = direction === "down" ? [0, px] : direction === "up" ? [0, -px] : direction === "right" ? [px, 0] : [-px, 0];
+      const target =
+        optString(args, "ref") || optCoordinate(args, "coordinate")
+          ? await resolveTarget(args, session, tabId)
+          : { x: vp.width / 2, y: vp.height / 2, label: "" };
+      const [deltaX, deltaY] =
+        direction === "down" ? [0, px] : direction === "up" ? [0, -px] : direction === "right" ? [px, 0] : [-px, 0];
       await moveTo(session, tabId, target, 0);
       await mouse(session, "mouseWheel", target.x, target.y, { deltaX, deltaY });
       await pause(400);
@@ -328,9 +424,10 @@ async function computer(args: Args): Promise<ToolResult> {
     case "scroll_to_bottom": {
       const screens = Math.min(Math.max(Math.round(optNumber(args, "scroll_amount") ?? 10), 1), 30);
       const vp = await viewportInfo(session);
-      const target = optString(args, "ref") || optCoordinate(args, "coordinate")
-        ? await resolveTarget(args, session, tabId)
-        : { x: vp.width / 2, y: vp.height / 2, label: "" };
+      const target =
+        optString(args, "ref") || optCoordinate(args, "coordinate")
+          ? await resolveTarget(args, session, tabId)
+          : { x: vp.width / 2, y: vp.height / 2, label: "" };
       await moveTo(session, tabId, target, 0);
       const start = await scrollMetrics(session, target);
       let metrics = start;
@@ -353,7 +450,9 @@ async function computer(args: Args): Promise<ToolResult> {
       }
       const grew = metrics.height - start.height;
       const growth = grew > 0 ? `; the page grew by ${grew}px as content loaded` : "";
-      return view(`Scrolled through ${done} screen${done === 1 ? "" : "s"}${growth}. ${atEnd ? "Reached the end of the page." : "More may load: call scroll_to_bottom again to continue."}`);
+      return view(
+        `Scrolled through ${done} screen${done === 1 ? "" : "s"}${growth}. ${atEnd ? "Reached the end of the page." : "More may load: call scroll_to_bottom again to continue."}`,
+      );
     }
 
     case "scroll_to": {
@@ -389,23 +488,30 @@ async function computer(args: Args): Promise<ToolResult> {
 async function tabsContext(): Promise<ToolResult> {
   const [tabs, windows, own] = await Promise.all([chrome.tabs.query({}), chrome.windows.getAll(), ownWindowId()]);
   const focusedWindow = windows.find((w) => w.focused)?.id;
-  const where = (t: chrome.tabs.Tab): string => (t.windowId === own ? "Yurei's window" : t.windowId === focusedWindow ? "user's window, focused" : "user's window");
+  const where = (t: chrome.tabs.Tab): string =>
+    t.windowId === own ? "Yurei's window" : t.windowId === focusedWindow ? "user's window, focused" : "user's window";
   const lines = tabs
     .filter((t) => t.id !== undefined)
     .sort((a, b) => Number(b.windowId === own) - Number(a.windowId === own))
     .map((t) => `${t.active ? "*" : " "} [${t.id}] ${t.title || "(untitled)"} — ${t.url ?? ""} (${where(t)})`);
-  const ownership = own === null
-    ? "Yurei has no window of its own yet: tabs_create or navigate with a url opens one."
-    : "Tools without tabId use the active tab of Yurei's window.";
-  return textResult(`${tabs.length} open tab(s); * marks the active tab of each window. ${ownership} Pass tabId to work in one of the user's tabs.\n${lines.join("\n")}`);
+  const ownership =
+    own === null
+      ? "Yurei has no window of its own yet: tabs_create or navigate with a url opens one."
+      : "Tools without tabId use the active tab of Yurei's window.";
+  return textResult(
+    `${tabs.length} open tab(s); * marks the active tab of each window. ${ownership} Pass tabId to work in one of the user's tabs.\n${lines.join("\n")}`,
+  );
 }
 
-const describeTabs = (tabs: ReadonlyArray<chrome.tabs.Tab>): string => tabs.map((t) => `[${t.id}] ${clip(t.title || t.pendingUrl || t.url || "", 60)}`).join(", ");
+const describeTabs = (tabs: ReadonlyArray<chrome.tabs.Tab>): string =>
+  tabs.map((t) => `[${t.id}] ${clip(t.title || t.pendingUrl || t.url || "", 60)}`).join(", ");
 
 async function checkTabBudget(destination: string): Promise<void> {
   const tabs = await ownTabs();
   if (tabs.length >= MAX_OWN_TABS) {
-    throw new ArgError(`Yurei already has ${tabs.length} tabs open: ${describeTabs(tabs)}. Navigate in one of them, or close some with tabs_close, instead of opening more.`);
+    throw new ArgError(
+      `Yurei already has ${tabs.length} tabs open: ${describeTabs(tabs)}. Navigate in one of them, or close some with tabs_close, instead of opening more.`,
+    );
   }
   const site = siteOf(destination);
   const sameSite = site ? tabs.filter((t) => siteOf(t.pendingUrl ?? t.url ?? "") === site) : [];
@@ -422,7 +528,10 @@ async function tabsCreate(args: Args): Promise<ToolResult> {
   await checkTabBudget(destination);
   if (url) await takeTurn(destination, "load");
   const own = await ownWindowId();
-  const tab = own === null ? await createOwnWindow(destination) : await chrome.tabs.create({ windowId: own, url: destination, active: true });
+  const tab =
+    own === null
+      ? await createOwnWindow(destination)
+      : await chrome.tabs.create({ windowId: own, url: destination, active: true });
   const tabId = tabIdOf(tab);
   const where = own === null ? " in Yurei's new window" : "";
   if (!url) return textResult(`Created empty tab ${tabId}${where}. Use navigate with tabId ${tabId} and a url.`);
@@ -476,15 +585,31 @@ async function readPage(args: Args): Promise<ToolResult> {
   let note = "";
   if (focused) {
     const frameId = ref === null ? 0 : frameOfRef(ref);
-    const options: TreeOptions = { filter, ref: ref === null ? null : localRef(ref), selector, maxChars, viewportOnly, clip: null, dismissConsent: false };
+    const options: TreeOptions = {
+      filter,
+      ref: ref === null ? null : localRef(ref),
+      selector,
+      maxChars,
+      viewportOnly,
+      clip: null,
+      dismissConsent: false,
+    };
     text = qualifyText(fieldString(await callPage(tabId, frameId, "tree", [options]), "text"), frameId);
   } else {
     const whole = await outline(tabId, filter, maxChars, viewportOnly);
     text = whole.text;
     if (whole.consent !== null) note = `${consentNote(whole.consent)}\n`;
   }
-  const scope = ref ? `subtree of ${ref}` : selector ? `elements matching ${quote(selector)}` : viewportOnly ? "interactive elements in the viewport" : "all elements on the page (including off-screen)";
-  return textResult(`Tab ${tabId}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}\n${note}${scope}:\n${text || "(nothing found)"}`);
+  const scope = ref
+    ? `subtree of ${ref}`
+    : selector
+      ? `elements matching ${quote(selector)}`
+      : viewportOnly
+        ? "interactive elements in the viewport"
+        : "all elements on the page (including off-screen)";
+  return textResult(
+    `Tab ${tabId}: ${tab.title ?? ""}\nURL: ${tab.url ?? ""}\n${note}${scope}:\n${text || "(nothing found)"}`,
+  );
 }
 
 async function find(args: Args): Promise<ToolResult> {
@@ -507,7 +632,10 @@ async function getPageText(args: Args): Promise<ToolResult> {
   const walk = await walkFrames(tabId, "text", () => [maxChars, { ref: null, selector }]);
   const top = walk.results.find((r) => r.frameId === 0)?.data;
   const scope = top ? fieldString(top, "scope") : "page";
-  const hint = selector === null && scope !== "page" ? ` (${scope}; pass selector="body" for everything, or a selector or ref for one part)` : ` (${scope})`;
+  const hint =
+    selector === null && scope !== "page"
+      ? ` (${scope}; pass selector="body" for everything, or a selector or ref for one part)`
+      : ` (${scope})`;
   return textResult(`${header}\nText${hint}:\n\n${composeText(walk, maxChars)}`);
 }
 
@@ -528,7 +656,11 @@ async function javascriptTool(args: Args): Promise<ToolResult> {
   const session = sessions.get(tabIdOf(tab));
   const code = reqString(args, "code");
   // Statement lists with `return` or `await` only parse inside a function body; compiling first decides that without running the code.
-  const compiled = await session.send("Runtime.compileScript", { expression: code, sourceURL: "", persistScript: false });
+  const compiled = await session.send("Runtime.compileScript", {
+    expression: code,
+    sourceURL: "",
+    persistScript: false,
+  });
   const wrap = isRecord(compiled) && compiled["exceptionDetails"] !== undefined;
   const value = await session.evaluate(wrap ? `(async () => { ${code} })()` : code);
   const out = value === undefined ? "undefined" : typeof value === "string" ? value : JSON.stringify(value, null, 1);
@@ -557,7 +689,9 @@ async function readConsole(args: Args): Promise<ToolResult> {
   const entries = session.console.filter((e) => matches(`${e.level} ${e.text}`)).slice(-limit);
   if (optBoolean(args, "clear")) session.console.splice(0);
   if (entries.length === 0) {
-    return textResult("No console messages captured. Yurei records console output from the moment it first touches a tab; reload the page with navigate(action=reload) to capture load-time messages.");
+    return textResult(
+      "No console messages captured. Yurei records console output from the moment it first touches a tab; reload the page with navigate(action=reload) to capture load-time messages.",
+    );
   }
   return textResult(entries.map((e) => `${timeOf(e.ts)} [${e.level}] ${e.text}`).join("\n"));
 }
@@ -571,9 +705,14 @@ async function readNetwork(args: Args): Promise<ToolResult> {
   const entries = session.network.filter((e) => matches(`${e.method} ${e.url} ${e.type}`)).slice(-limit);
   if (optBoolean(args, "clear")) session.network.splice(0);
   if (entries.length === 0) {
-    return textResult("No network requests captured yet. Yurei records requests from the moment it first touches a tab; reload with navigate(action=reload) to capture the page load.");
+    return textResult(
+      "No network requests captured yet. Yurei records requests from the moment it first touches a tab; reload with navigate(action=reload) to capture the page load.",
+    );
   }
-  const lines = entries.map((e) => `${timeOf(e.ts)} ${e.method} ${e.status ?? (e.failed ? `FAILED(${e.failed})` : "pending")} ${e.type} ${e.url}`);
+  const lines = entries.map(
+    (e) =>
+      `${timeOf(e.ts)} ${e.method} ${e.status ?? (e.failed ? `FAILED(${e.failed})` : "pending")} ${e.type} ${e.url}`,
+  );
   return textResult(lines.join("\n"));
 }
 

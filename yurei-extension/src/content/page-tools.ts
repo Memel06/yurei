@@ -1,6 +1,17 @@
 import {
-  MAX_FIND_RESULTS, type FindHit, type FindResult, type FrameSlot, type FramesResult, type PageApi, type Rect, type RectResult,
-  type SetValueResult, type TextResult, type TextScope, type TreeOptions, type TreeResult,
+  type FindHit,
+  type FindResult,
+  type FrameSlot,
+  type FramesResult,
+  MAX_FIND_RESULTS,
+  type PageApi,
+  type Rect,
+  type RectResult,
+  type SetValueResult,
+  type TextResult,
+  type TextScope,
+  type TreeOptions,
+  type TreeResult,
 } from "../page-api";
 import { clean, clip, quote, truncateText } from "../text-utils";
 
@@ -34,7 +45,19 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     error: `${ref} was not found or has been removed from the page. Call read_page or find again to get fresh refs.`,
   });
 
-  const SKIP_TAGS = new Set(["script", "style", "meta", "link", "title", "noscript", "template", "head", "br", "wbr", "hr"]);
+  const SKIP_TAGS = new Set([
+    "script",
+    "style",
+    "meta",
+    "link",
+    "title",
+    "noscript",
+    "template",
+    "head",
+    "br",
+    "wbr",
+    "hr",
+  ]);
   const NO_DESCEND_TAGS = new Set(["select", "svg", "iframe", "canvas", "video", "audio", "object", "embed"]);
 
   const ROLE_BY_TAG: Readonly<Record<string, string>> = {
@@ -86,20 +109,97 @@ import { clean, clip, quote, truncateText } from "../text-utils";
 
   const INTERACTIVE_TAGS = new Set(["a", "button", "input", "select", "textarea", "summary", "option"]);
   const INTERACTIVE_ROLES = new Set([
-    "button", "link", "checkbox", "radio", "switch", "tab", "menuitem", "menuitemcheckbox", "menuitemradio", "option",
-    "slider", "spinbutton", "textbox", "searchbox", "combobox", "listbox", "treeitem", "gridcell",
+    "button",
+    "link",
+    "checkbox",
+    "radio",
+    "switch",
+    "tab",
+    "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
+    "option",
+    "slider",
+    "spinbutton",
+    "textbox",
+    "searchbox",
+    "combobox",
+    "listbox",
+    "treeitem",
+    "gridcell",
   ]);
   const LANDMARK_ROLES = new Set([
-    "heading", "navigation", "main", "banner", "contentinfo", "region", "article", "complementary", "form", "dialog",
-    "table", "list", "tablist", "menu", "menubar", "toolbar", "search", "alert", "status",
+    "heading",
+    "navigation",
+    "main",
+    "banner",
+    "contentinfo",
+    "region",
+    "article",
+    "complementary",
+    "form",
+    "dialog",
+    "table",
+    "list",
+    "tablist",
+    "menu",
+    "menubar",
+    "toolbar",
+    "search",
+    "alert",
+    "status",
   ]);
   const FULL_TEXT_TAGS = new Set([
-    "a", "button", "summary", "h1", "h2", "h3", "h4", "h5", "h6", "label", "option", "legend", "caption", "th", "td",
-    "li", "dt", "dd", "p", "span", "strong", "em", "b", "i", "small", "code", "pre", "blockquote", "figcaption", "time",
+    "a",
+    "button",
+    "summary",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "label",
+    "option",
+    "legend",
+    "caption",
+    "th",
+    "td",
+    "li",
+    "dt",
+    "dd",
+    "p",
+    "span",
+    "strong",
+    "em",
+    "b",
+    "i",
+    "small",
+    "code",
+    "pre",
+    "blockquote",
+    "figcaption",
+    "time",
   ]);
   const FULL_TEXT_ROLES = new Set([
-    "button", "link", "tab", "menuitem", "option", "heading", "checkbox", "radio", "switch", "cell", "gridcell",
-    "columnheader", "rowheader", "treeitem", "listitem", "alert", "status", "tooltip",
+    "button",
+    "link",
+    "tab",
+    "menuitem",
+    "option",
+    "heading",
+    "checkbox",
+    "radio",
+    "switch",
+    "cell",
+    "gridcell",
+    "columnheader",
+    "rowheader",
+    "treeitem",
+    "listitem",
+    "alert",
+    "status",
+    "tooltip",
   ]);
   const SENSITIVE_AUTOCOMPLETE = ["current-password", "new-password", "one-time-code", "cc-number", "cc-csc", "cc-exp"];
 
@@ -133,7 +233,12 @@ import { clean, clip, quote, truncateText } from "../text-utils";
   const labelledBy = (el: Element): string => {
     const ids = clean(el.getAttribute("aria-labelledby"));
     if (!ids) return "";
-    return clean(ids.split(" ").map((id) => document.getElementById(id)?.textContent ?? "").join(" "));
+    return clean(
+      ids
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent ?? "")
+        .join(" "),
+    );
   };
 
   const labelFor = (el: Element): string => {
@@ -145,23 +250,35 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     return wrapper ? clean(wrapper.textContent) : "";
   };
 
-  const valueOf = (el: Element): string => {
+  const fieldValue = (el: Element): string => {
     if (!isFormField(el)) return "";
     if (isSensitive(el)) return el.value ? "[redacted]" : "";
     if (el instanceof HTMLSelectElement) return clean(el.options[el.selectedIndex]?.textContent);
-    if (el instanceof HTMLInputElement && ["checkbox", "radio", "submit", "button", "reset", "file", "image"].includes(el.type)) return "";
+    if (
+      el instanceof HTMLInputElement &&
+      ["checkbox", "radio", "submit", "button", "reset", "file", "image"].includes(el.type)
+    )
+      return "";
     return clip(el.value, 80);
   };
 
   // Accessible-name order: aria-labelledby/aria-label, then the <label>, then placeholder/title/alt.
   const nameOf = (el: Element, role: string): string => {
     const field = isFormField(el);
-    const direct = [el.getAttribute("aria-label"), labelledBy(el), field ? labelFor(el) : "", el.getAttribute("placeholder"), el.getAttribute("title"), el.getAttribute("alt")];
+    const direct = [
+      el.getAttribute("aria-label"),
+      labelledBy(el),
+      field ? labelFor(el) : "",
+      el.getAttribute("placeholder"),
+      el.getAttribute("title"),
+      el.getAttribute("alt"),
+    ];
     for (const candidate of direct) {
       const value = clean(candidate);
       if (value) return value;
     }
-    if (field) return el instanceof HTMLInputElement && ["submit", "button", "reset"].includes(el.type) ? clean(el.value) : "";
+    if (field)
+      return el instanceof HTMLInputElement && ["submit", "button", "reset"].includes(el.type) ? clean(el.value) : "";
     const tag = el.tagName.toLowerCase();
     if (tag === "img" || tag === "svg" || tag === "iframe" || tag === "video") return "";
     const text = FULL_TEXT_TAGS.has(tag) || FULL_TEXT_ROLES.has(role) ? clean(el.textContent) : ownText(el);
@@ -177,11 +294,14 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     }
   };
 
-  const visibleArea = (clipRect: Rect | null): Rect => clipRect ?? { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
+  const visibleArea = (clipRect: Rect | null): Rect =>
+    clipRect ?? { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
 
   const inViewport = (rect: DOMRect, clipRect: Rect | null): boolean => {
     const area = visibleArea(clipRect);
-    return rect.bottom > area.y && rect.right > area.x && rect.top < area.y + area.height && rect.left < area.x + area.width;
+    return (
+      rect.bottom > area.y && rect.right > area.x && rect.top < area.y + area.height && rect.left < area.x + area.width
+    );
   };
 
   const isInteractive = (el: Element, role: string, style: CSSStyleDeclaration): boolean => {
@@ -192,7 +312,9 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     const tabindex = el.getAttribute("tabindex");
     if (tabindex !== null && Number(tabindex) >= 0) return true;
     if (isHtml(el) && el.isContentEditable) return true;
-    return style.cursor === "pointer" && ownText(el).length > 0 && el.closest("a,button,[role=button],[role=link]") === null;
+    return (
+      style.cursor === "pointer" && ownText(el).length > 0 && el.closest("a,button,[role=button],[role=link]") === null
+    );
   };
 
   const isLandmark = (role: string): boolean => LANDMARK_ROLES.has(role);
@@ -211,7 +333,7 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       parts.push(`type=${el.type}`);
       if (el.type === "checkbox" || el.type === "radio") parts.push(el.checked ? "(checked)" : "(unchecked)");
     }
-    const value = valueOf(el);
+    const value = fieldValue(el);
     if (value) parts.push(`value=${quote(value)}`);
     const placeholder = clean(el.getAttribute("placeholder"));
     if (placeholder && placeholder !== name) parts.push(`placeholder=${quote(placeholder)}`);
@@ -336,11 +458,20 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     collectGarbage();
 
     let text = lines.join("\n");
-    if (truncated) text += `\n[stopped after ${MAX_NODES} elements; pass ref or selector to focus on a part of the page]`;
-    return { ok: true, text: truncateText(text, options.maxChars, "pass a larger max_chars, or a ref or selector to focus"), viewport: viewport(), frames, consent };
+    if (truncated)
+      text += `\n[stopped after ${MAX_NODES} elements; pass ref or selector to focus on a part of the page]`;
+    return {
+      ok: true,
+      text: truncateText(text, options.maxChars, "pass a larger max_chars, or a ref or selector to focus"),
+      viewport: viewport(),
+      frames,
+      consent,
+    };
   }
 
-  type Selected = { readonly ok: true; readonly elements: ReadonlyArray<Element> } | { readonly ok: false; readonly error: string };
+  type Selected =
+    | { readonly ok: true; readonly elements: ReadonlyArray<Element> }
+    | { readonly ok: false; readonly error: string };
 
   const select = (selector: string): Selected => {
     let elements: Element[];
@@ -350,7 +481,11 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       return { ok: false, error: `${quote(selector)} is not a valid CSS selector` };
     }
     const visible = elements.filter(isRendered);
-    if (visible.length === 0) return { ok: false, error: `No visible element matches ${quote(selector)}. Use read_page or find to see what is on the page.` };
+    if (visible.length === 0)
+      return {
+        ok: false,
+        error: `No visible element matches ${quote(selector)}. Use read_page or find to see what is on the page.`,
+      };
     return { ok: true, elements: visible };
   };
 
@@ -370,9 +505,12 @@ import { clean, clip, quote, truncateText } from "../text-utils";
   };
 
   // Cookie banners: the one-click way past them, taking the choice that keeps the user's data private when it is offered.
-  const CONSENT_HINT = /cookie|consent|gdpr|privacy|cmp|didomi|onetrust|usercentrics|iubenda|sp_message|qc-cmp|truste|cookiebot|notice/i;
-  const REJECT_TEXT = /^(?:reject(?: all)?(?: cookies)?|decline(?: all)?|refuse(?: all)?|deny(?: all)?|disagree|(?:only |use )?(?:strictly )?(?:necessary|essential)(?: cookies)?(?: only)?|accept (?:only )?necessary(?: cookies)?|continue without (?:accepting|agreeing)|rifiuta(?: tutt[oi])?|solo (?:i )?(?:cookie )?(?:necessari|essenziali)|continua senza accettare|(?:tout )?refuser|continuer sans accepter|(?:alle )?ablehnen|nur (?:notwendige|erforderliche)(?: cookies)?|rechazar(?: tod[oa]s?)?|(?:alles )?weigeren|rejeitar(?: tudo)?)$/;
-  const ACCEPT_TEXT = /^(?:accept(?: all)?(?: cookies)?|allow(?: all)?(?: cookies)?|(?:i )?agree(?: and close)?|i accept|ok(?:ay)?|got it|i understand|understood|yes i agree|consent|accetta(?: tutt[oi])?(?: i cookie)?|accetto|consenti|acconsento|ho capito|(?:tout )?accepter|j'accepte|(?:alle )?akzeptieren|zustimmen|einverstanden|aceptar(?: tod[oa]s?)?|permitir|(?:alles )?accepteren|aceitar(?: tudo)?)$/;
+  const CONSENT_HINT =
+    /cookie|consent|gdpr|privacy|cmp|didomi|onetrust|usercentrics|iubenda|sp_message|qc-cmp|truste|cookiebot|notice/i;
+  const REJECT_TEXT =
+    /^(?:reject(?: all)?(?: cookies)?|decline(?: all)?|refuse(?: all)?|deny(?: all)?|disagree|(?:only |use )?(?:strictly )?(?:necessary|essential)(?: cookies)?(?: only)?|accept (?:only )?necessary(?: cookies)?|continue without (?:accepting|agreeing)|rifiuta(?: tutt[oi])?|solo (?:i )?(?:cookie )?(?:necessari|essenziali)|continua senza accettare|(?:tout )?refuser|continuer sans accepter|(?:alle )?ablehnen|nur (?:notwendige|erforderliche)(?: cookies)?|rechazar(?: tod[oa]s?)?|(?:alles )?weigeren|rejeitar(?: tudo)?)$/;
+  const ACCEPT_TEXT =
+    /^(?:accept(?: all)?(?: cookies)?|allow(?: all)?(?: cookies)?|(?:i )?agree(?: and close)?|i accept|ok(?:ay)?|got it|i understand|understood|yes i agree|consent|accetta(?: tutt[oi])?(?: i cookie)?|accetto|consenti|acconsento|ho capito|(?:tout )?accepter|j'accepte|(?:alle )?akzeptieren|zustimmen|einverstanden|aceptar(?: tod[oa]s?)?|permitir|(?:alles )?accepteren|aceitar(?: tudo)?)$/;
   let consentClicked = false;
 
   const isButtonLike = (el: Element): boolean => {
@@ -384,7 +522,11 @@ import { clean, clip, quote, truncateText } from "../text-utils";
 
   const buttonText = (el: Element): string => {
     const raw = el instanceof HTMLInputElement ? el.value : el.textContent || el.getAttribute("aria-label") || "";
-    return clean(raw).toLowerCase().replace(/[^\p{L}\p{N}' ]+/gu, " ").replace(/\s+/g, " ").trim();
+    return clean(raw)
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}' ]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   };
 
   const parentOf = (node: Element): Element | null => {
@@ -397,12 +539,26 @@ import { clean, clip, quote, truncateText } from "../text-utils";
   const inConsentBanner = (el: Element): boolean => {
     const framed = window !== window.top;
     const bodyText = framed ? (document.body?.innerText ?? "") : "";
-    let hinted = framed && (CONSENT_HINT.test(`${location.href} ${window.name}`) || (bodyText.length < 4000 && /cookie/i.test(bodyText)));
+    let hinted =
+      framed &&
+      (CONSENT_HINT.test(`${location.href} ${window.name}`) || (bodyText.length < 4000 && /cookie/i.test(bodyText)));
     let floating = framed;
-    for (let node = parentOf(el), depth = 0; node && node !== document.body && node !== document.documentElement && depth < 12; node = parentOf(node), depth++) {
+    for (
+      let node = parentOf(el), depth = 0;
+      node && node !== document.body && node !== document.documentElement && depth < 12;
+      node = parentOf(node), depth++
+    ) {
       const style = getComputedStyle(node);
       const role = node.getAttribute("role") ?? "";
-      if (style.position === "fixed" || style.position === "sticky" || Number(style.zIndex) >= 10 || role === "dialog" || role === "alertdialog" || node.getAttribute("aria-modal") === "true") floating = true;
+      if (
+        style.position === "fixed" ||
+        style.position === "sticky" ||
+        Number(style.zIndex) >= 10 ||
+        role === "dialog" ||
+        role === "alertdialog" ||
+        node.getAttribute("aria-modal") === "true"
+      )
+        floating = true;
       if (!hinted) {
         const label = `${node.id} ${node.getAttribute("class") ?? ""} ${node.getAttribute("aria-label") ?? ""} ${node.getAttribute("data-testid") ?? ""}`;
         const text = node.textContent ?? "";
@@ -441,9 +597,48 @@ import { clean, clip, quote, truncateText } from "../text-utils";
   }
 
   const STOP_WORDS = new Set([
-    "the", "a", "an", "to", "of", "for", "on", "in", "at", "with", "and", "or", "button", "link", "field", "input", "box",
-    "bar", "icon", "element", "item", "menu", "text", "page", "that", "this", "says", "saying", "labeled", "labelled",
-    "called", "named", "containing", "contains", "which", "where", "is", "are", "be", "click", "clickable", "main",
+    "the",
+    "a",
+    "an",
+    "to",
+    "of",
+    "for",
+    "on",
+    "in",
+    "at",
+    "with",
+    "and",
+    "or",
+    "button",
+    "link",
+    "field",
+    "input",
+    "box",
+    "bar",
+    "icon",
+    "element",
+    "item",
+    "menu",
+    "text",
+    "page",
+    "that",
+    "this",
+    "says",
+    "saying",
+    "labeled",
+    "labelled",
+    "called",
+    "named",
+    "containing",
+    "contains",
+    "which",
+    "where",
+    "is",
+    "are",
+    "be",
+    "click",
+    "clickable",
+    "main",
   ]);
   const ROLE_HINTS: ReadonlyArray<readonly [RegExp, ReadonlyArray<string>]> = [
     [/\bbuttons?\b/, ["button"]],
@@ -460,15 +655,23 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     [/\bslider\b/, ["slider"]],
   ];
 
-  type Candidate = { readonly el: Element; readonly role: string; readonly name: string; readonly interactive: boolean; readonly inView: boolean; readonly score: number };
+  type Candidate = {
+    readonly el: Element;
+    readonly role: string;
+    readonly name: string;
+    readonly interactive: boolean;
+    readonly inView: boolean;
+    readonly score: number;
+  };
 
   function find(query: string, clipRect: Rect | null): FindResult {
     const q = clean(query).toLowerCase();
     if (!q) return { ok: false, error: "query is empty" };
     const wantedRoles = new Set<string>();
-    for (const [pattern, roles] of ROLE_HINTS) if (pattern.test(q)) roles.forEach((r) => wantedRoles.add(r));
+    for (const [pattern, roles] of ROLE_HINTS) if (pattern.test(q)) for (const r of roles) wantedRoles.add(r);
     // "search" alone means the search field; next to an explicit kind ("search button") it is just a word.
-    if (wantedRoles.size === 0 && /\bsearch\b/.test(q)) ["textbox", "searchbox", "combobox"].forEach((r) => wantedRoles.add(r));
+    if (wantedRoles.size === 0 && /\bsearch\b/.test(q))
+      for (const r of ["textbox", "searchbox", "combobox"]) wantedRoles.add(r);
     const tokens = q.split(/[^a-z0-9@._'-]+/).filter((t) => t.length > 1 && !STOP_WORDS.has(t));
     const phrase = tokens.join(" ");
     const candidates: Candidate[] = [];
@@ -483,10 +686,28 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       const interactive = isInteractive(el, role, style);
       const name = nameOf(el, role);
       if (!interactive && !name && role === "generic") continue;
-      const labelText = [name, el.getAttribute("aria-label"), el.getAttribute("placeholder"), el.getAttribute("title"), el.getAttribute("alt"), valueOf(el)]
-        .map(clean).join(" ").toLowerCase();
+      const labelText = [
+        name,
+        el.getAttribute("aria-label"),
+        el.getAttribute("placeholder"),
+        el.getAttribute("title"),
+        el.getAttribute("alt"),
+        fieldValue(el),
+      ]
+        .map(clean)
+        .join(" ")
+        .toLowerCase();
       // Attribute matches (ids, hrefs, test ids) are weaker evidence than what the user can read on screen.
-      const attributeText = [el.getAttribute("name"), el.id, el.getAttribute("href"), el.getAttribute("data-testid"), role].map(clean).join(" ").toLowerCase();
+      const attributeText = [
+        el.getAttribute("name"),
+        el.id,
+        el.getAttribute("href"),
+        el.getAttribute("data-testid"),
+        role,
+      ]
+        .map(clean)
+        .join(" ")
+        .toLowerCase();
       let score = 0;
       if (phrase && labelText.includes(phrase)) score += 10;
       else if (phrase && attributeText.includes(phrase)) score += 3;
@@ -506,7 +727,9 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       candidates.push({ el, role, name, interactive, inView, score });
     }
 
-    const deduped = candidates.filter((c) => c.interactive || !candidates.some((o) => o !== c && o.interactive && o.el.contains(c.el)));
+    const deduped = candidates.filter(
+      (c) => c.interactive || !candidates.some((o) => o !== c && o.interactive && o.el.contains(c.el)),
+    );
     deduped.sort((a, b) => b.score - a.score);
     const hits: FindHit[] = deduped.slice(0, MAX_FIND_RESULTS).map((c) => ({
       ref: refFor(c.el),
@@ -524,7 +747,8 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     if (scrollToRef !== null) {
       const target = resolve(scrollToRef);
       if (!target) return notFound(scrollToRef);
-      if (!inViewport(target.getBoundingClientRect(), null)) target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+      if (!inViewport(target.getBoundingClientRect(), null))
+        target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
     }
     const iframes = [...allElements(document.body ?? document.documentElement)].filter(
       (el): el is HTMLIFrameElement => el instanceof HTMLIFrameElement && isRendered(el),
@@ -537,10 +761,15 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     };
   }
 
-  const BOILERPLATE = "header, footer, nav, aside, [role=banner], [role=contentinfo], [role=navigation], [role=complementary]";
+  const BOILERPLATE =
+    "header, footer, nav, aside, [role=banner], [role=contentinfo], [role=navigation], [role=complementary]";
   const MAIN = "main, [role=main], article";
   const innerTextOf = (el: Element): string => (isHtml(el) ? el.innerText : (el.textContent ?? ""));
-  const tidy = (s: string): string => s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const tidy = (s: string): string =>
+    s
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
   /** The page without its furniture: the main landmark when it carries most of the text, else the body minus header, navigation, footer and asides. */
   const mainText = (): { readonly text: string; readonly scope: string } => {
@@ -571,10 +800,18 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     } else if (scope.selector) {
       const roots = select(scope.selector);
       if (!roots.ok) return roots;
-      picked = { text: roots.elements.map(innerTextOf).join("\n\n"), scope: `${roots.elements.length} element${roots.elements.length === 1 ? "" : "s"} matching ${quote(scope.selector)}` };
+      picked = {
+        text: roots.elements.map(innerTextOf).join("\n\n"),
+        scope: `${roots.elements.length} element${roots.elements.length === 1 ? "" : "s"} matching ${quote(scope.selector)}`,
+      };
     } else picked = mainText();
     const full = tidy(picked.text);
-    return { ok: true, text: truncateText(full, maxChars, "pass a larger max_chars, or a selector or ref to read one part"), total: full.length, scope: picked.scope };
+    return {
+      ok: true,
+      text: truncateText(full, maxChars, "pass a larger max_chars, or a selector or ref to read one part"),
+      total: full.length,
+      scope: picked.scope,
+    };
   }
 
   const clamp = (v: number, min: number, max: number): number => Math.min(Math.max(v, min), max);
@@ -623,9 +860,17 @@ import { clean, clip, quote, truncateText } from "../text-utils";
 
     if (el instanceof HTMLSelectElement) {
       const options = [...el.options];
-      const index = options.findIndex((o) => o.value === str || clean(o.textContent).toLowerCase() === str.toLowerCase());
+      const index = options.findIndex(
+        (o) => o.value === str || clean(o.textContent).toLowerCase() === str.toLowerCase(),
+      );
       if (index < 0) {
-        return { ok: false, error: `${label}: no option matches ${quote(str)}. Options: ${options.map((o) => clean(o.textContent)).slice(0, 30).join(" | ")}` };
+        return {
+          ok: false,
+          error: `${label}: no option matches ${quote(str)}. Options: ${options
+            .map((o) => clean(o.textContent))
+            .slice(0, 30)
+            .join(" | ")}`,
+        };
       }
       el.selectedIndex = index;
       fire(el, "input");
@@ -655,7 +900,10 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       return { ok: true, description: `${label} text replaced` };
     }
 
-    return { ok: false, error: `${label} is not an input, select, checkbox or editable element. Use computer left_click on it instead.` };
+    return {
+      ok: false,
+      error: `${label} is not an input, select, checkbox or editable element. Use computer left_click on it instead.`,
+    };
   }
 
   const api: PageApi = { tree, find, text, rect, scrollTo, setValue, frames };

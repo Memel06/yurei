@@ -1,0 +1,16 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["**", "!**/*.html", "!package-lock.json"] },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120, "lineEnding": "lf" },
+  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" } },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      // Records parsed from unknown input are read with bracket keys on purpose; tsconfig enforces it
+      // through noPropertyAccessFromIndexSignature, so this rule would only fight that convention.
+      "complexity": { "useLiteralKeys": "off" }
+    }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}
