@@ -15,11 +15,11 @@
   ],
   "homepage": "https://yurei.web.app",
   "bugs": {
-    "url": "https://github.com/memel06/yurei/issues"
+    "url": "https://github.com/Memel06/yurei/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/memel06/yurei.git",
+    "url": "git+https://github.com/Memel06/yurei.git",
     "directory": "yurei-kit"
   },
   "author": "Carmelo Ventimiglia",
