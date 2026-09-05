@@ -3,7 +3,9 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-05
+
+Yurei never accepts cookies on the user's behalf, and finds elements whatever language the page is in.
 
 ### Changed
 
@@ -83,7 +85,7 @@ First public release.
   find, forms, JavaScript, console and network logs, window resize. Iframes included, with frame-qualified refs.
 - Screenshots on demand for models that see images. Text views for everyone else.
 
-[Unreleased]: https://github.com/memel06/yurei/compare/v0.3.0...HEAD
+[0.4.0]: https://github.com/memel06/yurei/releases/tag/v0.4.0
 [0.3.0]: https://github.com/memel06/yurei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/memel06/yurei/releases/tag/v0.2.0
 [0.1.0]: https://github.com/memel06/yurei/releases/tag/v0.1.0
