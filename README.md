@@ -60,8 +60,8 @@ window comes to the front; put it wherever you like and it comes back there next
 touched only when you ask for one of them, like the news tab above.
 
 While the ghost works, the tab glows and a **Stop Yurei** button appears at the bottom of the page. Cookie
-banners are dismissed for it, with "reject" when that is one click away. The AI acts inside your logged-in
-accounts. It is told to ask before paying, sending messages or deleting anything. Keep an eye on it anyway.
+banners are rejected for it when a reject button is one click away; a banner that only offers accept is left to
+you, and the AI is told to ask before going on. The AI acts inside your logged-in accounts. It is told to ask before paying, sending messages or deleting anything. Keep an eye on it anyway.
 
 Want it further away still? Make a Chrome profile just for Yurei and add the extension to that profile only.
 The setup command is the same.

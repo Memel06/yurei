@@ -18,6 +18,9 @@ export type TreeOptions = {
   readonly dismissConsent: boolean;
 };
 
+/** What tree() did about a cookie banner: pressed its reject button, or found one it will not accept on the user's behalf. */
+export type Consent = { readonly outcome: "rejected" | "needs-user"; readonly label: string };
+
 /** What get_page_text reads: one ref, the elements matching a selector, or (both null) the main content. */
 export type TextScope = { readonly ref: string | null; readonly selector: string | null };
 
@@ -57,7 +60,7 @@ export type TreeResult =
       readonly text: string;
       readonly viewport: Viewport;
       readonly frames: ReadonlyArray<FrameSlot>;
-      readonly consent: string | null;
+      readonly consent: Consent | null;
     }
   | Fail;
 export type FindResult = { readonly ok: true; readonly hits: ReadonlyArray<FindHit>; readonly total: number } | Fail;

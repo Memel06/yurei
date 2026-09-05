@@ -1,4 +1,5 @@
 import {
+  type Consent,
   type FindHit,
   type FindResult,
   type FrameSlot,
@@ -504,14 +505,14 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     return rect.width > 0 || rect.height > 0;
   };
 
-  // Cookie banners: the one-click way past them, taking the choice that keeps the user's data private when it is offered.
+  // Cookie banners: the one-click reject is pressed when a banner offers one. Accepting is never done for the user.
   const CONSENT_HINT =
     /cookie|consent|gdpr|privacy|cmp|didomi|onetrust|usercentrics|iubenda|sp_message|qc-cmp|truste|cookiebot|notice/i;
   const REJECT_TEXT =
     /^(?:reject(?: all)?(?: cookies)?|decline(?: all)?|refuse(?: all)?|deny(?: all)?|disagree|(?:only |use )?(?:strictly )?(?:necessary|essential)(?: cookies)?(?: only)?|accept (?:only )?necessary(?: cookies)?|continue without (?:accepting|agreeing)|rifiuta(?: tutt[oi])?|solo (?:i )?(?:cookie )?(?:necessari|essenziali)|continua senza accettare|(?:tout )?refuser|continuer sans accepter|(?:alle )?ablehnen|nur (?:notwendige|erforderliche)(?: cookies)?|rechazar(?: tod[oa]s?)?|(?:alles )?weigeren|rejeitar(?: tudo)?)$/;
   const ACCEPT_TEXT =
     /^(?:accept(?: all)?(?: cookies)?|allow(?: all)?(?: cookies)?|(?:i )?agree(?: and close)?|i accept|ok(?:ay)?|got it|i understand|understood|yes i agree|consent|accetta(?: tutt[oi])?(?: i cookie)?|accetto|consenti|acconsento|ho capito|(?:tout )?accepter|j'accepte|(?:alle )?akzeptieren|zustimmen|einverstanden|aceptar(?: tod[oa]s?)?|permitir|(?:alles )?accepteren|aceitar(?: tudo)?)$/;
-  let consentClicked = false;
+  let consentRejected = false;
 
   const isButtonLike = (el: Element): boolean => {
     const tag = el.tagName.toLowerCase();
@@ -569,17 +570,19 @@ import { clean, clip, quote, truncateText } from "../text-utils";
     return hinted && floating;
   };
 
+  const buttonLabel = (el: Element): string =>
+    clip(clean(el.textContent || el.getAttribute("aria-label")), 40) || "the consent button";
+
   const press = (el: Element): string => {
-    consentClicked = true;
-    const label = clip(clean(el.textContent || el.getAttribute("aria-label")), 40) || "the consent button";
+    consentRejected = true;
     if (isHtml(el)) el.click();
     else el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    return label;
+    return buttonLabel(el);
   };
 
-  /** Clicks a cookie banner's reject button, or failing that its accept button, once per document. Returns the button's label. */
-  function dismissConsent(): string | null {
-    if (consentClicked) return null;
+  /** Presses a cookie banner's reject button, once per document. A banner that only offers accept is reported, not pressed. */
+  function dismissConsent(): Consent | null {
+    if (consentRejected) return null;
     let accept: Element | null = null;
     let scanned = 0;
     for (const el of allElements(document.body ?? document.documentElement)) {
@@ -590,10 +593,10 @@ import { clean, clip, quote, truncateText } from "../text-utils";
       const rejects = REJECT_TEXT.test(text);
       if (!rejects && (accept !== null || !ACCEPT_TEXT.test(text))) continue;
       if (!isRendered(el) || !inViewport(el.getBoundingClientRect(), null) || !inConsentBanner(el)) continue;
-      if (rejects) return press(el);
+      if (rejects) return { outcome: "rejected", label: press(el) };
       accept = el;
     }
-    return accept ? press(accept) : null;
+    return accept ? { outcome: "needs-user", label: buttonLabel(accept) } : null;
   }
 
   const STOP_WORDS = new Set([

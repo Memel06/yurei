@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Changed
+
+- Cookie banners are only ever rejected. When a banner offers no reject button, nothing is clicked: the AI is told
+  to ask the user to dismiss it, or to say which button to press, before it goes on. Before, the accept button was
+  clicked in that case.
+
 ### Fixed
 
 - `yurei update` and the automatic `pi install` on Windows: commands that have to run through `cmd.exe` are quoted,

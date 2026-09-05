@@ -39,7 +39,7 @@ import { hideForCapture, markActive, moveCursor, showAfterCapture } from "./indi
 import { MOD, parseKeyPress } from "./keys";
 import { createOwnWindow, ownTabs, ownWindowId } from "./own-window";
 import { movePath, type Point, pause, siteOf, sleep, takeTurn } from "./pacing";
-import type { Rect, TreeFilter, TreeOptions } from "./page-api";
+import type { Consent, Rect, TreeFilter, TreeOptions } from "./page-api";
 import { captureScreenshot, viewportInfo } from "./screenshot";
 import { clip, errorMessage, quote, truncateText } from "./text-utils";
 import { normalizeUrl } from "./urls";
@@ -100,9 +100,17 @@ async function resolveTab(args: Args, allowRestricted = false): Promise<chrome.t
   return tab;
 }
 
-type Outline = { readonly text: string; readonly viewport: string; readonly consent: string | null };
+type Outline = { readonly text: string; readonly viewport: string; readonly consent: Consent | null };
 
-/** Outline of the whole tab: top frame plus every reachable iframe, composed into one indented text. Cookie banners get dismissed on the way. */
+const consentOf = (data: Record<string, unknown>): Consent | null => {
+  const v = data["consent"];
+  if (!isRecord(v) || typeof v["label"] !== "string") return null;
+  return v["outcome"] === "rejected" || v["outcome"] === "needs-user"
+    ? { outcome: v["outcome"], label: v["label"] }
+    : null;
+};
+
+/** Outline of the whole tab: top frame plus every reachable iframe, composed into one indented text. Cookie banners get rejected on the way. */
 async function outline(tabId: number, filter: TreeFilter, maxChars: number, viewportOnly: boolean): Promise<Outline> {
   const options = (clip: Rect | null, dismissConsent: boolean): TreeOptions => ({
     filter,
@@ -114,9 +122,9 @@ async function outline(tabId: number, filter: TreeFilter, maxChars: number, view
     dismissConsent,
   });
   let walk = await walkFrames(tabId, "tree", (clip) => [options(clip, true)]);
-  const consent =
-    walk.results.map((r) => (r.data ? fieldString(r.data, "consent") : "")).find((c) => c.length > 0) ?? null;
-  if (consent !== null) {
+  const consents = walk.results.flatMap((r) => (r.data ? (consentOf(r.data) ?? []) : []));
+  const consent = consents.find((c) => c.outcome === "rejected") ?? consents[0] ?? null;
+  if (consent?.outcome === "rejected") {
     // The outline just taken still shows the banner; give the page a moment to drop it and look again.
     await pause(600);
     walk = await walkFrames(tabId, "tree", (clip) => [options(clip, false)]);
@@ -129,7 +137,10 @@ async function outline(tabId: number, filter: TreeFilter, maxChars: number, view
   };
 }
 
-const consentNote = (label: string): string => `Note: dismissed a cookie banner by clicking ${quote(label)}.`;
+const consentNote = ({ outcome, label }: Consent): string =>
+  outcome === "rejected"
+    ? `Note: dismissed a cookie banner by clicking ${quote(label)}.`
+    : `Note: a cookie banner covers the page and has no reject button, only ${quote(label)}. Yurei never accepts cookies for the user: stop, ask the user to dismiss it themselves or to say which button to press, and wait for their answer before doing anything else on this page.`;
 
 const wantsScreenshot = (args: Args): boolean => optBoolean(args, "screenshot") === true;
 
