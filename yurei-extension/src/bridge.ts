@@ -9,7 +9,7 @@ import {
   type ToolName,
   type ToolResult,
 } from "../../shared/protocol";
-import { errorMessage } from "./cdp";
+import { errorMessage } from "./text-utils";
 
 type Handler = (tool: ToolName, args: Args) => Promise<ToolResult>;
 

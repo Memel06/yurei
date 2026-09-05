@@ -19,7 +19,7 @@ import {
   reqNumber,
   reqString,
 } from "./args";
-import { errorMessage, sessions, type TabSession } from "./cdp";
+import { sessions, type TabSession } from "./cdp";
 import {
   callPage,
   chainOffset,
@@ -41,7 +41,8 @@ import { createOwnWindow, ownTabs, ownWindowId } from "./own-window";
 import { movePath, type Point, pause, siteOf, sleep, takeTurn } from "./pacing";
 import type { Rect, TreeFilter, TreeOptions } from "./page-api";
 import { captureScreenshot, viewportInfo } from "./screenshot";
-import { clip, quote, truncateText } from "./text-utils";
+import { clip, errorMessage, quote, truncateText } from "./text-utils";
+import { normalizeUrl } from "./urls";
 
 const STOP_COOLDOWN_MS = 30_000;
 const SNAPSHOT_TREE_CHARS = 5000;
@@ -175,19 +176,6 @@ async function waitForLoad(tabId: number, timeoutMs = 20_000): Promise<void> {
     }
     await sleep(150);
   }
-}
-
-const FULL_URL = /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:about|data|javascript|mailto|blob|view-source):)/i;
-const HOST_URL = /^(localhost|\d{1,3}(?:\.\d{1,3}){3}|[\w-]+(?:\.[\w-]+)*\.[a-z]{2,})(?::\d{1,5})?(?:[/?#]|$)/i;
-const LOCAL_HOST = /^(?:localhost|\d{1,3}(?:\.\d{1,3}){3})$/i;
-
-/** Full URLs pass through; hosts get a scheme (http for localhost and IP literals); anything else becomes a search. */
-function normalizeUrl(input: string): string {
-  const trimmed = input.trim();
-  if (FULL_URL.test(trimmed)) return trimmed;
-  const host = HOST_URL.exec(trimmed)?.[1];
-  if (host) return `${LOCAL_HOST.test(host) ? "http" : "https"}://${trimmed}`;
-  return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
 }
 
 type Target = { readonly x: number; readonly y: number; readonly label: string };

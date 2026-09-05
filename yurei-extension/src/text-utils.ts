@@ -1,6 +1,7 @@
 export const clean = (s: string | null | undefined): string => (s ?? "").replace(/\s+/g, " ").trim();
 export const clip = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max)}…` : s);
 export const quote = (s: string): string => `"${s.replace(/"/g, '\\"')}"`;
+export const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 /** Cuts at a line boundary and says how much was left out. */
 export function truncateText(text: string, maxChars: number, hint: string): string {

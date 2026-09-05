@@ -1,6 +1,5 @@
 import { isRecord } from "../../shared/protocol";
 import { ArgError } from "./args";
-import { errorMessage } from "./cdp";
 import {
   type FindHit,
   type FrameSelf,
@@ -11,7 +10,7 @@ import {
   type TreeFilter,
   type Viewport,
 } from "./page-api";
-import { clip, quote, truncateText } from "./text-utils";
+import { clip, errorMessage, quote, truncateText } from "./text-utils";
 
 const MAX_FRAMES = 25;
 
@@ -188,7 +187,7 @@ function matchSlot(self: FrameSelf, slots: ReadonlyArray<FrameSlot>, taken: Read
 
 const NOT_SCRIPTABLE = "frame is not scriptable";
 
-export async function mapFrames(tabId: number): Promise<FrameMap> {
+async function mapFrames(tabId: number): Promise<FrameMap> {
   const nodes = ((await chrome.webNavigation.getAllFrames({ tabId })) ?? [])
     .filter((n) => n.documentLifecycle === "active" && n.frameType !== "fenced_frame")
     // Frame ids grow with creation, so parents come before children and siblings keep DOM order.

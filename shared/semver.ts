@@ -2,7 +2,7 @@ const numbers = (version: string): ReadonlyArray<number> =>
   (version.split("-")[0] ?? "").split(".").map((n) => Number.parseInt(n, 10) || 0);
 
 /** Major.minor.patch comparison; prerelease tags are ignored. */
-export function compareVersions(a: string, b: string): number {
+function compareVersions(a: string, b: string): number {
   const pa = numbers(a);
   const pb = numbers(b);
   for (let i = 0; i < 3; i++) {

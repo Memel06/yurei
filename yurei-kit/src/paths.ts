@@ -9,13 +9,13 @@ export const isWindows = process.platform === "win32";
 export const yureiHome = (): string => join(homedir(), ".yurei");
 export const hostLogPath = (): string => join(yureiHome(), "native-host.log");
 /** On Windows the registry points at this single manifest; elsewhere a copy goes into each browser's folder. */
-export const hostManifestPath = (): string => join(yureiHome(), `${NATIVE_HOST_NAME}.json`);
+const hostManifestPath = (): string => join(yureiHome(), `${NATIVE_HOST_NAME}.json`);
 
 /** The file currently running: an npx cache, a global npm install, or a checkout's build. */
 export const scriptPath = (): string => fileURLToPath(import.meta.url);
 
 /** Set when running from a checkout, whose build is then used in place so a rebuild needs no reinstall. */
-export function repoRoot(): string | null {
+function repoRoot(): string | null {
   const root = join(dirname(scriptPath()), "..", "..");
   return existsSync(join(root, "yurei-extension", "manifest.json")) ? root : null;
 }

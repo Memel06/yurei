@@ -1,5 +1,6 @@
 import { isRecord } from "../../shared/protocol";
 import type { Point } from "./pacing";
+import { errorMessage } from "./text-utils";
 
 type Params = Record<string, unknown>;
 
@@ -14,8 +15,6 @@ export type NetworkEntry = {
 };
 
 const MAX_ENTRIES = 300;
-
-export const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 const pushCapped = <T>(list: T[], item: T): void => {
   list.push(item);

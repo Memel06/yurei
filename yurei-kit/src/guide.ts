@@ -1,3 +1,5 @@
+import { TOOL_NAMES } from "../../shared/protocol";
+
 /** How a model should drive the browser. Served as MCP instructions and installed as a skill. */
 export const GUIDE = `Yurei gives you the user's real Chrome, with their logged-in sessions. It browses in a window of its own, so the user can keep using theirs.
 Workflow:
@@ -18,7 +20,7 @@ description: Browse the web in the user's own Chrome with the yurei tools (their
 
 # Yurei
 
-The yurei MCP server exposes the user's Chrome. Its tools are tabs_context, tabs_create, tabs_close, navigate, computer, read_page, find, get_page_text, form_input, javascript_tool, read_console_messages, read_network_requests and resize_window.
+The yurei MCP server exposes the user's Chrome. Its tools are ${TOOL_NAMES.slice(0, -1).join(", ")} and ${TOOL_NAMES.at(-1)}.
 
 ${GUIDE}
 `;

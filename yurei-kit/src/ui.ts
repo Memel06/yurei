@@ -22,14 +22,10 @@ export const bold = pc.bold;
 /** A command for the user to type, with the site's glow prompt in front. */
 export const cmd = (line: string): string => `${glow("$")} ${bold(line)}`;
 
-/** Section labels the way the site sets its kickers: small, spaced, quiet. */
-export const kicker = (label: string): string => dim(label.toUpperCase().split("").join(" "));
-
 const TAGLINE = "Your AI, haunting your browser.";
 
 // Block glyphs and kanji need a UTF-8 console; on Windows only the modern terminals announce one.
-export const unicode =
-  process.platform !== "win32" || Boolean(process.env["WT_SESSION"] || process.env["TERM_PROGRAM"]);
+const unicode = process.platform !== "win32" || Boolean(process.env["WT_SESSION"] || process.env["TERM_PROGRAM"]);
 
 /** Brush numerals, as the site numbers its steps. */
 const NUMERALS = ["一", "二", "三", "四", "五"];

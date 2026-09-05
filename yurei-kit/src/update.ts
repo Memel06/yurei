@@ -57,7 +57,7 @@ function fetchLatest(): Promise<string | null> {
   });
 }
 
-export const updateChecksDisabled = (): boolean => Boolean(process.env["YUREI_NO_UPDATE_CHECK"]);
+const updateChecksDisabled = (): boolean => Boolean(process.env["YUREI_NO_UPDATE_CHECK"]);
 
 /** The newest version on npm, asked at most once a day; null when unknown. Forcing skips the cache and the opt-out. */
 export async function latestVersion(force = false): Promise<string | null> {
