@@ -3,6 +3,13 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+
+- `yurei update` and the automatic `pi install` on Windows: commands that have to run through `cmd.exe` are quoted,
+  so a Node.js under `C:\Program Files`, or a user folder with a space in it, no longer breaks them apart.
+
 ## [0.3.0] - 2026-09-04
 
 Yurei gets a window of its own, dismisses cookie banners, reads pages more narrowly and learns to update itself.
@@ -68,6 +75,7 @@ First public release.
   find, forms, JavaScript, console and network logs, window resize. Iframes included, with frame-qualified refs.
 - Screenshots on demand for models that see images. Text views for everyone else.
 
+[Unreleased]: https://github.com/memel06/yurei/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/memel06/yurei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/memel06/yurei/releases/tag/v0.2.0
 [0.1.0]: https://github.com/memel06/yurei/releases/tag/v0.1.0

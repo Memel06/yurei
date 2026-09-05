@@ -55,13 +55,27 @@ const anyExists = (...paths: ReadonlyArray<string>): boolean => paths.some((p) =
 
 export type Progress = (message: string) => void;
 
+type Command = { readonly command: string; readonly args: ReadonlyArray<string> };
+
+/**
+ * A .cmd only runs through a shell, and with a shell Node joins command and arguments with spaces without quoting
+ * anything, so a path such as C:\Program Files\nodejs\npx.cmd would run "C:\Program". Elsewhere there is no shell.
+ */
+export const forShell = ({ command, args }: Command): Command =>
+  isWindows ? { command: `"${command}"`, args: args.map((a) => `"${a}"`) } : { command, args };
+
 const RUN_TIMEOUT_MS = 120_000;
 
 /** Runs a command to the end, surfacing its latest output line as progress; on failure the error carries the output's tail. */
 function run(command: string, args: ReadonlyArray<string>, progress: Progress): Promise<void> {
   return new Promise((resolve, reject) => {
     // Chrome-launched or GUI-launched tools inherit no stdin worth reading; a .cmd on Windows only starts through a shell.
-    const child = spawn(command, [...args], { stdio: ["ignore", "pipe", "pipe"], shell: isWindows, windowsHide: true });
+    const quoted = forShell({ command, args });
+    const child = spawn(quoted.command, [...quoted.args], {
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: isWindows,
+      windowsHide: true,
+    });
     let output = "";
     const onData = (chunk: Buffer): void => {
       output += chunk.toString();

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import * as p from "@clack/prompts";
 import { isRecord } from "../../shared/protocol";
 import { isNewer } from "../../shared/semver";
-import { findCommand, installSkill } from "./harness";
+import { findCommand, forShell, installSkill } from "./harness";
 import { HostClient } from "./host-client";
 import { installNativeHost } from "./install";
 import { ensureDir, isWindows, yureiHome } from "./paths";
@@ -126,7 +126,8 @@ export async function runUpdate(): Promise<number> {
       return 1;
     }
     p.log.step(`Fetching it with ${cmd(`npx yurei-chrome@${latest} update`)}`);
-    const run = spawnSync(npx, ["--yes", `yurei-chrome@${latest}`, "update"], { stdio: "inherit", shell: isWindows });
+    const { command, args } = forShell({ command: npx, args: ["--yes", `yurei-chrome@${latest}`, "update"] });
+    const run = spawnSync(command, [...args], { stdio: "inherit", shell: isWindows });
     return run.status ?? 1;
   }
   s.stop(`v${VERSION} is the newest version`);
