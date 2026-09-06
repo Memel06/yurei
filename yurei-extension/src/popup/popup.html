@@ -35,6 +35,12 @@
       ul { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
       ul:empty { display: none; }
       li { border: 1px solid rgba(27, 26, 34, .25); border-radius: 999px; padding: 4px 10px; font: 600 12px/1 var(--sans); }
+      li.clear { border: 0; padding: 0; }
+      li.clear button {
+        border: 1px dashed rgba(27, 26, 34, .4); border-radius: 999px; padding: 4px 10px; background: transparent;
+        color: var(--paper-dim); font: 600 12px/1 var(--sans); cursor: pointer; transition: color .15s ease, border-color .15s ease;
+      }
+      li.clear button:hover { color: var(--paper-ink); border-color: rgba(27, 26, 34, .7); }
       .seal {
         position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; padding: 0;
         color: var(--shu); font: 400 15px/1.05 var(--brush); -webkit-text-stroke: .3px var(--shu); text-shadow: 0 0 .6px var(--shu);
@@ -64,7 +70,7 @@
       footer { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--dim); font-size: 11px; }
       footer a { color: var(--dim); text-decoration: none; }
       footer a:hover { color: var(--ink); }
-      @media (prefers-reduced-motion: reduce) { .seal, .btn { transition: none; } .seal.shake { animation: none; } }
+      @media (prefers-reduced-motion: reduce) { .seal, .btn, li.clear button { transition: none; } .seal.shake { animation: none; } }
     </style>
   </head>
   <body>
@@ -84,7 +90,7 @@
       <label>Glow <input type="color" id="accent" /></label>
     </div>
     <p class="help" id="help"></p>
-    <footer><a href="https://yurei.web.app" target="_blank" rel="noreferrer">yurei.web.app</a><span>MIT</span></footer>
+    <footer><a href="https://yurei-ai.com" target="_blank" rel="noreferrer">yurei-ai.com</a><span>MIT</span></footer>
     <script src="popup.js"></script>
   </body>
 </html>

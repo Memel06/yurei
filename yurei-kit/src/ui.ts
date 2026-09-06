@@ -12,7 +12,7 @@ const rgb =
     return truecolor ? `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m` : fallback(s);
   };
 
-/** yurei.web.app's palette: glow for the kanji and anything worth a look, shu red for stop and failure, blue for the ghost. */
+/** yurei-ai.com's palette: glow for the kanji and anything worth a look, shu red for stop and failure, blue for the ghost. */
 export const glow = rgb(138, 211, 252, pc.cyan);
 export const shu = rgb(199, 58, 39, pc.red);
 const blue = rgb(66, 116, 242, pc.blue);

@@ -51,6 +51,13 @@ export class NativeBridge {
     };
   }
 
+  /** Forgets every harness session. One whose AI tool is still running comes back on its next tool call. */
+  dropSessions(): void {
+    this.send({ type: "drop-sessions" });
+    this.sessions = [];
+    this.onChange();
+  }
+
   connect(): void {
     if (this.port) return;
     let port: chrome.runtime.Port;

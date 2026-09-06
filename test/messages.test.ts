@@ -35,6 +35,7 @@ test("updateHint tells the user which half to update", () => {
 
 test("runtime and indicator messages are validated by shape", () => {
   assert.equal(isRuntimeMessage({ type: "yurei:stop" }), true);
+  assert.equal(isRuntimeMessage({ type: "yurei:clear-sessions" }), true);
   assert.equal(isRuntimeMessage({ type: "yurei:set-accent", color: "#000000" }), true);
   assert.equal(isRuntimeMessage({ type: "yurei:set-accent" }), false);
   assert.equal(isRuntimeMessage({ type: "yurei:show", color: "#000000" }), false);

@@ -76,6 +76,7 @@ test("parseExtensionToHost validates results block by block", () => {
   assert.deepEqual(parseExtensionToHost(hello), hello);
   assert.equal(parseExtensionToHost({ type: "hello", protocol: "yurei/3" }), null);
   assert.deepEqual(parseExtensionToHost({ type: "pong" }), { type: "pong" });
+  assert.deepEqual(parseExtensionToHost({ type: "drop-sessions" }), { type: "drop-sessions" });
 });
 
 test("parseSessionToHost", () => {

@@ -143,6 +143,10 @@ export function runNativeHost(): void {
           if (conn) toSession(conn, { type: "result", id: message.id.slice(separator + 1), result: message.result });
           break;
         }
+        case "drop-sessions":
+          log(`clearing ${sessions.size} session(s) on request from the popup`);
+          for (const conn of sessions.values()) conn.socket.destroy();
+          break;
         case "pong":
           break;
       }
@@ -169,6 +173,7 @@ export function runNativeHost(): void {
         switch (message.type) {
           case "hello":
             conn.harness = message.harness;
+            log(`session ${id} (${message.harness}) connected`);
             toSession(conn, welcomeSession());
             broadcastSessions();
             break;
@@ -200,7 +205,9 @@ export function runNativeHost(): void {
       }
     });
     const drop = (): void => {
-      if (sessions.delete(id)) broadcastSessions();
+      if (!sessions.delete(id)) return;
+      log(`session ${id} (${conn.harness}) disconnected`);
+      broadcastSessions();
     };
     socket.on("close", drop);
     socket.on("error", drop);
