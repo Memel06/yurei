@@ -30,7 +30,8 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 - `yurei-kit/` the `yurei` command: native host, MCP server and setup wizard, published to npm as `yurei-chrome`.
 - `shared/protocol.ts` the messages the two exchange.
 - `test/` unit tests for the pure modules and the CLI. What needs a real Chrome is tested by hand, see below.
-- `assets/` the logo, also used by the [website](https://yurei.web.app).
+- `assets/` the logo, also used by the [website](https://yurei-ai.com). `tools/build-icons.sh` rebuilds the
+  extension icons from it (python3 with Pillow).
 
 ## Style
 
@@ -63,7 +64,6 @@ HOME=$(mktemp -d) XDG_CONFIG_HOME=$HOME/.config node yurei-kit/dist/yurei.mjs se
 3. Upload `yurei-extension-store.zip` from the release to the Chrome Web Store developer console. `yurei-extension.zip`
    keeps the `key` in `manifest.json`, which fixes the id an unpacked folder gets and the native host trusts; the store
    minted its own id for the listing and refuses an upload that carries a key, so the store zip drops it.
-4. Remove the "not in the Chrome Web Store yet" note from the README once the listing is live.
-5. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
+4. Users get the extension from the store by itself and are told to run `yurei update` for the CLI. Bump `PROTOCOL`
    in `shared/protocol.ts` only when a message changes in a way the other side cannot ignore; both sides then report
    the mismatch to the user instead of failing silently, so keep new fields optional when you can.

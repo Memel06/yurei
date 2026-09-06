@@ -1,6 +1,6 @@
 # yurei-chrome
 
-The command-line half of [Yurei](https://yurei.web.app), which lets your AI browse in your own Chrome. It
+The command-line half of [Yurei](https://yurei-ai.com), which lets your AI browse in your own Chrome. It
 registers the native messaging host the Yurei extension talks to, runs the MCP server your AI tool launches
 and adds Yurei to the tools you pick: opencode, pi, Cursor, Windsurf, Codex CLI or any other MCP client.
 

@@ -3,6 +3,30 @@
 Notable changes to Yurei. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org).
 
+## [0.4.1] - 2026-09-06
+
+Yurei is on the Chrome Web Store, its toolbar icon is big enough to find, and connections left behind by an AI
+tool that quit can be cleared away.
+
+### Added
+
+- The popup clears the connections it lists: press **Clear** next to them. An AI tool that is still running
+  reconnects on its next request, so only the dead ones stay gone.
+
+### Changed
+
+- The extension is listed as "Yurei - AI browser control", which says what it does to someone browsing the store.
+  Nothing changes inside: the popup, the command and the extension id are the same.
+- The toolbar icon shows the ghost's head edge to edge instead of the whole figure shrunk into a corner of the
+  canvas, so it carries the same weight as every other icon in the toolbar. `tools/build-icons.sh` rebuilds it.
+- Yurei's home is [yurei-ai.com](https://yurei-ai.com). Every link follows.
+
+### Fixed
+
+- `yurei serve` exits when the AI tool that started it goes away. The MCP transport never watched for the end of
+  its input, so every AI session that quit left a process behind holding a connection, and the popup went on
+  counting connections nobody was using.
+
 ## [0.4.0] - 2026-09-05
 
 Yurei never accepts cookies on the user's behalf, and finds elements whatever language the page is in.
@@ -85,6 +109,7 @@ First public release.
   find, forms, JavaScript, console and network logs, window resize. Iframes included, with frame-qualified refs.
 - Screenshots on demand for models that see images. Text views for everyone else.
 
+[0.4.1]: https://github.com/memel06/yurei/releases/tag/v0.4.1
 [0.4.0]: https://github.com/memel06/yurei/releases/tag/v0.4.0
 [0.3.0]: https://github.com/memel06/yurei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/memel06/yurei/releases/tag/v0.2.0

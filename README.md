@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://yurei.web.app"><img src="assets/yurei.png" width="140" alt="Yurei, a friendly blue ghost"></a>
+  <a href="https://yurei-ai.com"><img src="assets/yurei.png" width="140" alt="Yurei, a friendly blue ghost"></a>
 </p>
 
 <h1 align="center">Yurei</h1>
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://yurei.web.app">yurei.web.app</a> ·
+  <a href="https://yurei-ai.com">yurei-ai.com</a> ·
   <a href="#install">Install</a> ·
   <a href="#use">Use</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
@@ -40,10 +40,6 @@ they need them. Text-only models read the page as text. There is nothing to conf
 Setup registers the native host, waits for the extension to say hello and asks which of your AI tools to add
 Yurei to. It also writes a short skill file, `~/.agents/skills/yurei/SKILL.md`, that teaches the AI how to use
 the tools. Restart your AI tools. That's it, the ghost is in.
-
-> The extension is not in the Chrome Web Store yet. Until it is, download `yurei-extension.zip` from the
-> [latest release](https://github.com/memel06/yurei/releases/latest), unzip it and load the folder in `chrome://extensions`
-> with Developer mode on. Step 2 works as written.
 
 ## Use
 
@@ -113,6 +109,9 @@ everything it can click or type into. Buttons and fields inside embedded frames 
 ## Troubleshooting
 
 - **The extension says "not connected".** Run `yurei setup` again, then reload the extension in `chrome://extensions`.
+- **The popup lists connections that are not there any more.** Press **Clear** next to them. An AI tool that is still
+  running comes back on its next request. Command line tools before 0.4.1 left a `yurei serve` process behind when the
+  AI tool quit, which is what kept them listed; `yurei update` fixes that.
 - **Your AI does not see Yurei.** Restart it after setup. `yurei config <tool>` shows what its config should contain.
 - **"Tab is being debugged by something else".** Close Chrome DevTools on that tab.
 - **Nothing happens on `chrome://` pages.** They cannot be controlled. Open a website first.

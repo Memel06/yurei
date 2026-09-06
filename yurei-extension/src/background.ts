@@ -51,6 +51,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       sendResponse({ ok: true });
       return false;
     }
+    case "yurei:clear-sessions": {
+      bridge.dropSessions();
+      sendResponse({ ok: true });
+      return false;
+    }
     case "yurei:status": {
       void getAccent().then((accent) => {
         const status: StatusResponse = { version: extensionVersion, accent, ...bridge.status() };

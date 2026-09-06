@@ -62,6 +62,10 @@ async function serve(): Promise<void> {
   server.server.onclose = shutdown;
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+  // The MCP stdio transport never watches for the end of stdin, so an AI tool that quits without killing us would
+  // leave this process running forever, holding a session the extension popup goes on counting.
+  process.stdin.on("end", shutdown);
+  process.stdin.on("close", shutdown);
   await server.connect(new StdioServerTransport());
 }
 

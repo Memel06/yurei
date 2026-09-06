@@ -84,7 +84,9 @@ export type HostToExtension =
 export type ExtensionToHost =
   | { readonly type: "hello"; readonly protocol: string; readonly extensionId: string; readonly version: string }
   | { readonly type: "result"; readonly id: string; readonly result: ToolResult }
-  | { readonly type: "pong" };
+  | { readonly type: "pong" }
+  /** The user pressed Clear in the popup: close every session socket. Live ones reconnect on their next call. */
+  | { readonly type: "drop-sessions" };
 
 /** Harness session (`yurei serve`) → native host, over the local Unix socket. */
 export type SessionToHost =
@@ -173,6 +175,8 @@ export function parseExtensionToHost(v: unknown): ExtensionToHost | null {
         : null;
     case "pong":
       return { type: "pong" };
+    case "drop-sessions":
+      return { type: "drop-sessions" };
     default:
       return null;
   }

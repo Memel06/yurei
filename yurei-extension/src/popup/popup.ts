@@ -67,6 +67,21 @@ const renderHelp = (parts: ReadonlyArray<HelpPart>): void => {
   );
 };
 
+/** Drops connections left behind by an AI tool that quit. One that is still running reconnects on its next call. */
+const clearItem = (): HTMLElement => {
+  const li = document.createElement("li");
+  li.className = "clear";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Clear";
+  button.title = "Forget these connections. An AI tool that is still running comes back on its next request.";
+  button.addEventListener("click", () => {
+    void send({ type: "yurei:clear-sessions" }).then(() => refresh());
+  });
+  li.append(button);
+  return li;
+};
+
 async function refresh(): Promise<void> {
   const res = await send({ type: "yurei:status" }).catch(() => undefined);
   if (!isStatus(res)) return;
@@ -90,6 +105,7 @@ async function refresh(): Promise<void> {
       li.textContent = s.harness;
       return li;
     }),
+    ...(res.sessions.length > 0 ? [clearItem()] : []),
   );
   renderHelp(helpFor(res));
 }

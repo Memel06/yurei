@@ -48,6 +48,7 @@ export type RuntimeMessage =
   | { readonly type: "yurei:stop-all" }
   | { readonly type: "yurei:status" }
   | { readonly type: "yurei:reconnect" }
+  | { readonly type: "yurei:clear-sessions" }
   | { readonly type: "yurei:set-accent"; readonly color: string };
 
 export const DEFAULT_ACCENT = "#4274f2";
@@ -59,6 +60,7 @@ export const isRuntimeMessage = (v: unknown): v is RuntimeMessage => {
     case "yurei:stop-all":
     case "yurei:status":
     case "yurei:reconnect":
+    case "yurei:clear-sessions":
       return true;
     case "yurei:set-accent":
       return typeof v["color"] === "string";
